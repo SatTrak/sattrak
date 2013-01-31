@@ -1,4 +1,4 @@
-raspberrypi
+sattrak
 ===========
 
-Repo for Raspberry Pi control unit code
+Repo for control unit code for SatTrak project.
