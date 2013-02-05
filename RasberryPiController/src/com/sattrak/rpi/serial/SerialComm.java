@@ -1,4 +1,4 @@
-package com.sattrak.rpi;
+package com.sattrak.rpi.serial;
 
 import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;

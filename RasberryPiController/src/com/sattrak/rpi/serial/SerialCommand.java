@@ -1,4 +1,4 @@
-package com.sattrak.rpi;
+package com.sattrak.rpi.serial;
 
 public enum SerialCommand {
 	//@formatter:off
