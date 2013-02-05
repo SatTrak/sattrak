@@ -101,14 +101,15 @@ public abstract class SerialPacket {
 	// PRIVATE METHODS
 	// ===============================
 
-	private byte[] validateAndGetArgBytes(byte[] packetBytes) throws Exception {
+	private byte[] validateAndGetArgBytes(byte[] packetBytes)
+			throws InvalidPacketException {
 		// Validate header
 		if (!hasHeader(packetBytes))
-			throw new Exception("Invalid packet: incorrect header");
+			throw new InvalidPacketException("Incorrect header");
 
 		// Validate checksum
 		if (!isChecksumValid(packetBytes))
-			throw new Exception("Invalid packet: checksum failed");
+			throw new InvalidPacketException("checksum failed");
 
 		// Return byte array containing argument values
 		// Also subtract checksum length when that is implemented
@@ -127,6 +128,16 @@ public abstract class SerialPacket {
 		// Validate the checksum
 		// TODO
 		return true;
+	}
+
+	// ===============================
+	// CUSTOM EXCEPTIONS
+	// ===============================
+
+	public class InvalidPacketException extends Exception {
+		public InvalidPacketException(String message) {
+			super(message);
+		}
 	}
 
 }

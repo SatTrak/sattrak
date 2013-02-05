@@ -1,5 +1,7 @@
 package com.sattrak.rpi.serial;
 
+import com.sattrak.rpi.util.ByteConverter;
+
 public class EnvironmentalResponsePacket extends SerialPacket {
 
 	// ===============================
@@ -10,22 +12,22 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	private static final int LOCATION_TEMP = 0;
 
 	// Argument 2: elevation angle
-	private static final int LOCATION_HUMIDITY = 1;
+	private static final int LOCATION_HUMIDITY = 2;
 
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
-	private byte temperature;
-	private byte humidity;
+	private short temperature;
+	private short humidity;
 
 	// ===============================
 	// CONSTRUCTORS
 	// ===============================
 
-	public EnvironmentalResponsePacket(byte temperature, byte humidity) {
+	public EnvironmentalResponsePacket(int temperature, int humidity) {
 		setCommand(SerialCommand.RESPONSE_ENV);
-		this.temperature = temperature;
-		this.humidity = humidity;
+		this.temperature = (short) temperature;
+		this.humidity = (short) humidity;
 	}
 
 	public EnvironmentalResponsePacket(byte[] packetBytes) throws Exception {
@@ -36,11 +38,11 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	// GETTERS
 	// ===============================
 
-	public byte getTemperature() {
+	public short getTemperature() {
 		return temperature;
 	}
 
-	public byte getHumidity() {
+	public short getHumidity() {
 		return humidity;
 	}
 
@@ -50,19 +52,25 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 
 	@Override
 	protected byte[] argsToBytes() {
+		// Convert arguments to byte arrays
+		byte[] tempBytes = ByteConverter.shortToBytes(temperature);
+		byte[] humBytes = ByteConverter.shortToBytes(humidity);
+
 		// Create byte array for all arguments
-		byte[] argBytes = new byte[2];
+		byte[] argBytes = new byte[tempBytes.length + humBytes.length];
 
 		// Insert arguments into array
-		argBytes[LOCATION_TEMP] = temperature;
-		argBytes[LOCATION_HUMIDITY] = humidity;
+		System.arraycopy(tempBytes, 0, argBytes, LOCATION_TEMP,
+				tempBytes.length);
+		System.arraycopy(humBytes, 0, argBytes, LOCATION_HUMIDITY,
+				humBytes.length);
 		return argBytes;
 	}
 
 	@Override
 	protected void bytesToArgs(byte[] argBytes) {
-		temperature = argBytes[LOCATION_TEMP];
-		humidity = argBytes[LOCATION_HUMIDITY];
+		temperature = ByteConverter.bytesToShort(argBytes, LOCATION_TEMP);
+		humidity = ByteConverter.bytesToShort(argBytes, LOCATION_HUMIDITY);
 	}
 
 }

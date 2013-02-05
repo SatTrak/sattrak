@@ -2,7 +2,10 @@ package com.sattrak.rpi.serial;
 
 import gnu.io.CommPort;
 import gnu.io.CommPortIdentifier;
+import gnu.io.NoSuchPortException;
+import gnu.io.PortInUseException;
 import gnu.io.SerialPort;
+import gnu.io.UnsupportedCommOperationException;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -37,31 +40,25 @@ public class SerialComm {
 	/**
 	 * Connect to the specified serial port
 	 * 
-	 * @throws Exception
+	 * @throws NoSuchPortException
+	 * @throws PortInUseException
+	 * @throws UnsupportedCommOperationException
+	 * 
 	 */
-	public void connect(String portName) throws Exception {
+	public void connect(String portName) throws NoSuchPortException,
+			PortInUseException, UnsupportedCommOperationException {
 		// Get the identifier for the intended port
 		CommPortIdentifier portIdentifier = CommPortIdentifier
 				.getPortIdentifier(portName);
-
-		// Throw an exception of that port is already being used
-		if (portIdentifier.isCurrentlyOwned())
-			throw new Exception("Port " + portName + " is currently in use");
 
 		// Open the port
 		CommPort commPort = portIdentifier.open(this.getClass().getName(),
 				COMM_TIMEOUT);
 
-		// Check if it is a serial port
-		if (commPort instanceof SerialPort) {
-			serialPort = (SerialPort) commPort;
-
-			// Set the parameters
-			serialPort.setSerialPortParams(BAUD_RATE, SerialPort.DATABITS_8,
-					SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
-		} else {
-			throw new Exception("Only serial ports are handled");
-		}
+		// Set the parameters
+		serialPort = (SerialPort) commPort;
+		serialPort.setSerialPortParams(BAUD_RATE, SerialPort.DATABITS_8,
+				SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
 	}
 
 	/**
@@ -102,9 +99,4 @@ public class SerialComm {
 
 		return success;
 	}
-
-	// ===============================
-	// PRIVATE METHODS
-	// ===============================
-
 }

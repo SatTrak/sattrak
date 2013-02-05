@@ -29,6 +29,26 @@ public class ByteConverter {
 	}
 
 	/**
+	 * Convert the given byte array to a hexidecimal string.
+	 * 
+	 * @param bytes
+	 *            the byte array to convert
+	 * @return the corresponding hex string
+	 */
+	public static String bytesToHex(byte[] bytes) {
+		final char[] hexArray = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
+				'9', 'A', 'B', 'C', 'D', 'E', 'F' };
+		char[] hexChars = new char[bytes.length * 2];
+		int v;
+		for (int j = 0; j < bytes.length; j++) {
+			v = bytes[j] & 0xFF;
+			hexChars[j * 2] = hexArray[v >>> 4];
+			hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+		}
+		return new String(hexChars);
+	}
+
+	/**
 	 * Convert a double into a byte array.
 	 * 
 	 * @param value
@@ -49,8 +69,31 @@ public class ByteConverter {
 	 * @return the corresponding double
 	 */
 	public static double bytesToDouble(byte[] bytes, int offset) {
-		byte[] doubleBytes = getByteSubarray(bytes, offset, 8);
-		return ByteBuffer.wrap(doubleBytes).getDouble();
+		return ByteBuffer.wrap(bytes).getDouble(offset);
+	}
+
+	/**
+	 * Convert a short into a byte array.
+	 * 
+	 * @param value
+	 *            the short
+	 * @return the equivalent byte array
+	 */
+	public static byte[] shortToBytes(short value) {
+		byte[] bytes = new byte[2];
+		ByteBuffer.wrap(bytes).putShort(value);
+		return bytes;
+	}
+
+	/**
+	 * Convert a byte array into a short.
+	 * 
+	 * @param bytes
+	 *            the byte array
+	 * @return the corresponding short
+	 */
+	public static short bytesToShort(byte[] bytes, int offset) {
+		return ByteBuffer.wrap(bytes).getShort(offset);
 	}
 
 }
