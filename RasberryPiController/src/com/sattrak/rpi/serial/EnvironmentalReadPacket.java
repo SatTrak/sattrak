@@ -10,7 +10,8 @@ public class EnvironmentalReadPacket extends SerialPacket {
 		setCommand(SerialCommand.READ_ENV);
 	}
 
-	public EnvironmentalReadPacket(byte[] packetBytes) throws Exception {
+	public EnvironmentalReadPacket(byte[] packetBytes)
+			throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

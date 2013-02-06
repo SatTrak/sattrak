@@ -5,13 +5,16 @@ import gnu.io.CommPortIdentifier;
 import gnu.io.NoSuchPortException;
 import gnu.io.PortInUseException;
 import gnu.io.SerialPort;
+import gnu.io.SerialPortEvent;
+import gnu.io.SerialPortEventListener;
 import gnu.io.UnsupportedCommOperationException;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.TooManyListenersException;
 
-public class SerialComm {
+public abstract class SerialComm {
 
 	// ===============================
 	// CONSTANTS
@@ -34,6 +37,12 @@ public class SerialComm {
 	}
 
 	// ===============================
+	// ABSTRACT METHODS
+	// ===============================
+
+	public abstract void handleRxData(byte[] rxBytes);
+
+	// ===============================
 	// PUBLIC METHODS
 	// ===============================
 
@@ -43,10 +52,12 @@ public class SerialComm {
 	 * @throws NoSuchPortException
 	 * @throws PortInUseException
 	 * @throws UnsupportedCommOperationException
+	 * @throws TooManyListenersException
 	 * 
 	 */
 	public void connect(String portName) throws NoSuchPortException,
-			PortInUseException, UnsupportedCommOperationException {
+			PortInUseException, UnsupportedCommOperationException,
+			TooManyListenersException {
 		// Get the identifier for the intended port
 		CommPortIdentifier portIdentifier = CommPortIdentifier
 				.getPortIdentifier(portName);
@@ -59,6 +70,22 @@ public class SerialComm {
 		serialPort = (SerialPort) commPort;
 		serialPort.setSerialPortParams(BAUD_RATE, SerialPort.DATABITS_8,
 				SerialPort.STOPBITS_1, SerialPort.PARITY_NONE);
+
+		// Create and set an event listener for the serial port to act on
+		// received data
+		SerialPortEventListener packetReceivedListener = new SerialPortEventListener() {
+
+			@Override
+			public void serialEvent(SerialPortEvent event) {
+				if (event.getEventType() == SerialPortEvent.DATA_AVAILABLE) {
+					byte[] rxBytes = read();
+					handleRxData(rxBytes);
+				}
+			}
+		};
+
+		serialPort.addEventListener(packetReceivedListener);
+		serialPort.notifyOnDataAvailable(true);
 	}
 
 	/**

@@ -84,7 +84,7 @@ public abstract class SerialPacket {
 		return packetBytes;
 	}
 
-	public void fromBytes(byte[] packetBytes) throws Exception {
+	public void fromBytes(byte[] packetBytes) throws InvalidPacketException {
 		// Validate the packet and extract the argument bytes
 		byte[] argBytes = validateAndGetArgBytes(packetBytes);
 

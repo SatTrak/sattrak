@@ -10,7 +10,8 @@ public class OrientationReadPacket extends SerialPacket {
 		setCommand(SerialCommand.READ_ORIENTATION);
 	}
 
-	public OrientationReadPacket(byte[] packetBytes) throws Exception {
+	public OrientationReadPacket(byte[] packetBytes)
+			throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

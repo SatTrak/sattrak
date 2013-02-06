@@ -30,7 +30,7 @@ public class GpsResponsePacket extends SerialPacket {
 		this.longitude = longitude;
 	}
 
-	public GpsResponsePacket(byte[] packetBytes) throws Exception {
+	public GpsResponsePacket(byte[] packetBytes) throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

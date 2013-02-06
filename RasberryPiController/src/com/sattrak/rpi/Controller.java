@@ -5,8 +5,19 @@ import java.util.GregorianCalendar;
 import java.util.concurrent.DelayQueue;
 import java.util.concurrent.TimeUnit;
 
+import com.sattrak.rpi.serial.AckPacket;
+import com.sattrak.rpi.serial.EnvironmentalReadPacket;
 import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
+import com.sattrak.rpi.serial.GpsReadPacket;
+import com.sattrak.rpi.serial.GpsResponsePacket;
+import com.sattrak.rpi.serial.NackPacket;
+import com.sattrak.rpi.serial.OrientationReadPacket;
+import com.sattrak.rpi.serial.OrientationResponsePacket;
+import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
+import com.sattrak.rpi.serial.SerialCommand;
+import com.sattrak.rpi.serial.SerialPacket;
+import com.sattrak.rpi.serial.SerialPacket.InvalidPacketException;
 import com.sattrak.rpi.util.ByteConverter;
 
 /**
@@ -103,6 +114,86 @@ public class Controller {
 		};
 
 		new Thread(executeTask).start();
+	}
+
+	private void handlePacket(byte[] packetBytes) {
+		SerialCommand command = SerialPacket.getCommand(packetBytes);
+		try {
+			switch (command) {
+			case ACK:
+				AckPacket ackPacket = new AckPacket(packetBytes);
+				// TODO
+				break;
+			case NACK:
+				NackPacket nackPacket = new NackPacket(packetBytes);
+				// TODO
+				break;
+			case SET_ORIENTATION:
+				OrientationSetPacket oSetPacket = new OrientationSetPacket(
+						packetBytes);
+				// TODO
+				break;
+			case READ_ORIENTATION:
+				OrientationReadPacket oReadPacket = new OrientationReadPacket(
+						packetBytes);
+				// TODO
+				break;
+			case RESPONSE_ORIENTATION:
+				OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
+						packetBytes);
+				// TODO
+				break;
+			case READ_ENV:
+				EnvironmentalReadPacket envReadPacket = new EnvironmentalReadPacket(
+						packetBytes);
+				// TODO
+				break;
+			case RESPONSE_ENV:
+				EnvironmentalResponsePacket envRespPacket = new EnvironmentalResponsePacket(
+						packetBytes);
+				// TODO
+				break;
+			case READ_GPS:
+				GpsReadPacket gpsReadPacket = new GpsReadPacket(packetBytes);
+				// TODO
+				break;
+			case RESPONSE_GPS:
+				GpsResponsePacket gpsRespPacket = new GpsResponsePacket(
+						packetBytes);
+				// TODO
+				break;
+			default:
+				break;
+			}
+		} catch (InvalidPacketException e) {
+			e.printStackTrace();
+			System.out.println(e.getMessage());
+		}
+
+	}
+
+	// ===============================
+	// INNER CLASSES
+	// ===============================
+
+	/**
+	 * Implementation of SerialComm to communicate with Arduino. Implements
+	 * handlePacket method.
+	 * 
+	 * @author Alex Thompson
+	 * 
+	 */
+	public class ArduinoComm extends SerialComm {
+
+		public ArduinoComm(String portName) throws Exception {
+			super(portName);
+		}
+
+		@Override
+		public void handleRxData(byte[] rxBytes) {
+			handlePacket(rxBytes);
+		}
+
 	}
 
 	// ===============================

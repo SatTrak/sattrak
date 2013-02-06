@@ -10,7 +10,7 @@ public class GpsReadPacket extends SerialPacket {
 		setCommand(SerialCommand.READ_GPS);
 	}
 
-	public GpsReadPacket(byte[] packetBytes) throws Exception {
+	public GpsReadPacket(byte[] packetBytes) throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

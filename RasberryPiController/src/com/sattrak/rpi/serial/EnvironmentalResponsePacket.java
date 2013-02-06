@@ -30,7 +30,8 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 		this.humidity = (short) humidity;
 	}
 
-	public EnvironmentalResponsePacket(byte[] packetBytes) throws Exception {
+	public EnvironmentalResponsePacket(byte[] packetBytes)
+			throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

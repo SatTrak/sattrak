@@ -30,7 +30,8 @@ public class OrientationSetPacket extends SerialPacket {
 		this.elevation = elevation;
 	}
 
-	public OrientationSetPacket(byte[] packetBytes) throws Exception {
+	public OrientationSetPacket(byte[] packetBytes)
+			throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 

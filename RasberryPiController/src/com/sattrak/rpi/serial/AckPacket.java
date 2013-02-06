@@ -1,5 +1,6 @@
 package com.sattrak.rpi.serial;
 
+
 public class AckPacket extends SerialPacket {
 
 	// ===============================
@@ -24,7 +25,7 @@ public class AckPacket extends SerialPacket {
 		this.ackdCommand = ackdCommand;
 	}
 
-	public AckPacket(byte[] packetBytes) throws Exception {
+	public AckPacket(byte[] packetBytes) throws InvalidPacketException {
 		fromBytes(packetBytes);
 	}
 
