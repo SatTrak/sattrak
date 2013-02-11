@@ -1,5 +1,8 @@
 package com.sattrak.rpi;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.concurrent.DelayQueue;
@@ -11,9 +14,7 @@ import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
 import com.sattrak.rpi.serial.GpsReadPacket;
 import com.sattrak.rpi.serial.GpsResponsePacket;
 import com.sattrak.rpi.serial.NackPacket;
-import com.sattrak.rpi.serial.OrientationReadPacket;
 import com.sattrak.rpi.serial.OrientationResponsePacket;
-import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
 import com.sattrak.rpi.serial.SerialCommand;
 import com.sattrak.rpi.serial.SerialPacket;
@@ -34,13 +35,13 @@ public class Controller {
 	// CONSTANTS
 	// ===============================
 
-	private static final String COM_PORT = "/dev/ttyS80";
+	private static final String SERIAL_PORT = "/dev/ttyS80";
 
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
 
-	private SerialComm serialComm;
+	private ArduinoComm arduino;
 	private DelayQueue<Task> tasks;
 
 	// ===============================
@@ -48,17 +49,17 @@ public class Controller {
 	// ===============================
 
 	/**
-	 * Create a new Controller that communicates via serial on COM_PORT and
+	 * Create a new Controller that communicates via serial on SERIAL_PORT and
 	 * executes tasks at specified times
 	 * 
 	 * @throws Exception
 	 *             if a serial port error occurs
 	 */
 	public Controller() throws Exception {
-		// serialComm = new SerialComm(COM_PORT);
+		arduino = new ArduinoComm(SERIAL_PORT);
 		tasks = new DelayQueue<Task>();
-		startTaskThread();
-		generateTasks();
+		// startTaskThread();
+		// generateTasks();
 	}
 
 	// ===============================
@@ -73,6 +74,20 @@ public class Controller {
 	 */
 	public void addTask(Task t) {
 		tasks.add(t);
+	}
+
+	/**
+	 * Write the given SerialPacket to the port
+	 * 
+	 * @param packet
+	 */
+	public void writePacket(SerialPacket packet) {
+		arduino.write(packet.toBytes());
+	}
+
+	public void readPacket() {
+		byte[] packetBytes = arduino.read();
+		handlePacket(packetBytes);
 	}
 
 	// ===============================
@@ -116,55 +131,64 @@ public class Controller {
 		new Thread(executeTask).start();
 	}
 
+	/**
+	 * Handle a packet received from the Arduino. How it is handled depends on
+	 * the command.
+	 * 
+	 * @param packetBytes
+	 *            the byte array received
+	 */
 	private void handlePacket(byte[] packetBytes) {
 		SerialCommand command = SerialPacket.getCommand(packetBytes);
+		String commandString = command.toString();
+		String argString = "";
 		try {
+			// Handle all commands that could have been sent by the Arduino
 			switch (command) {
 			case ACK:
 				AckPacket ackPacket = new AckPacket(packetBytes);
+				argString = "Ack'd Command: "
+						+ ackPacket.getAckdCommand().toString();
 				// TODO
 				break;
 			case NACK:
 				NackPacket nackPacket = new NackPacket(packetBytes);
-				// TODO
-				break;
-			case SET_ORIENTATION:
-				OrientationSetPacket oSetPacket = new OrientationSetPacket(
-						packetBytes);
-				// TODO
-				break;
-			case READ_ORIENTATION:
-				OrientationReadPacket oReadPacket = new OrientationReadPacket(
-						packetBytes);
+				argString = "Nack'd Command: "
+						+ nackPacket.getNackdCommand().toString();
 				// TODO
 				break;
 			case RESPONSE_ORIENTATION:
 				OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
 						packetBytes);
-				// TODO
-				break;
-			case READ_ENV:
-				EnvironmentalReadPacket envReadPacket = new EnvironmentalReadPacket(
-						packetBytes);
+				argString = "Azimuth: " + oRespPacket.getAzimuth()
+						+ "\nElevation: " + oRespPacket.getElevation();
 				// TODO
 				break;
 			case RESPONSE_ENV:
 				EnvironmentalResponsePacket envRespPacket = new EnvironmentalResponsePacket(
 						packetBytes);
-				// TODO
-				break;
-			case READ_GPS:
-				GpsReadPacket gpsReadPacket = new GpsReadPacket(packetBytes);
+				argString = "Temperature: " + envRespPacket.getTemperature()
+						+ " degrees\nHumidity: " + envRespPacket.getHumidity()
+						+ "%";
 				// TODO
 				break;
 			case RESPONSE_GPS:
 				GpsResponsePacket gpsRespPacket = new GpsResponsePacket(
 						packetBytes);
+				argString = "Latitude: " + gpsRespPacket.getLatitude()
+						+ " degrees\nLongitude: "
+						+ gpsRespPacket.getLongitude() + "degrees";
 				// TODO
 				break;
 			default:
 				break;
 			}
+
+			System.out.println("\nReceived Packet");
+			System.out.println("Command: " + commandString);
+			System.out.println("Arguments: " + argString);
+			System.out.println("Raw bytes: "
+					+ ByteConverter.bytesToHex(packetBytes) + "\n");
 		} catch (InvalidPacketException e) {
 			e.printStackTrace();
 			System.out.println(e.getMessage());
@@ -222,32 +246,70 @@ public class Controller {
 				+ time.get(Calendar.SECOND);
 	}
 
+	private static class UserInput implements Runnable {
+		private static final String OPTIONS = "\nOptions:\n----------\n1. Get Environmental Data\n2. Get GPS Location\n";
+		private static final String REQUEST_INPUT = "Enter option number: ";
+
+		@Override
+		public void run() {
+			BufferedReader keyboard = new BufferedReader(new InputStreamReader(
+					System.in));
+			try {
+				final Controller controller = new Controller();
+
+				while (true) {
+					System.out.println(OPTIONS);
+					System.out.println(REQUEST_INPUT);
+					String option = "";
+					try {
+						option = keyboard.readLine();
+
+						if (option.equals("1")) {
+							// Get env data
+							System.out
+									.println("Requesting Environmental Data...\n");
+							EnvironmentalReadPacket packet = new EnvironmentalReadPacket();
+							controller.writePacket(packet);
+							controller.readPacket();
+
+						} else if (option.equals("2")) {
+							// Get gps location
+							System.out.println("Requesting GPS Location...\n");
+							GpsReadPacket packet = new GpsReadPacket();
+							controller.writePacket(packet);
+							controller.readPacket();
+						} else {
+							System.out.println("Invalid option!");
+						}
+
+						System.out.println("\nPerform another task? (y/n)");
+						String restart = keyboard.readLine();
+						if (restart.equals("y")) {
+							System.out.println("\n\n\n\n\n\n\n\n\n\n\n");
+						} else if (restart.equals("n")) {
+							return;
+						} else {
+							System.out.println("Invalid input!");
+						}
+					} catch (IOException e) {
+						e.printStackTrace();
+						System.out.println("Error reading input!");
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+				System.out.println(e.getMessage());
+			}
+
+		}
+
+	}
+
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		EnvironmentalResponsePacket pkt = new EnvironmentalResponsePacket(300,
-				50);
-		byte[] packetBytes = pkt.toBytes();
-		System.out.println("Packet Out: "
-				+ ByteConverter.bytesToHex(packetBytes));
-		try {
-			EnvironmentalResponsePacket pktIn = new EnvironmentalResponsePacket(
-					packetBytes);
-			System.out.println("Packet In:");
-			System.out.println("  temperature: " + pktIn.getTemperature());
-			System.out.println("  humidity: " + pktIn.getHumidity());
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println(e.getMessage());
-		}
-
-		try {
-			Controller c = new Controller();
-		} catch (Exception e) {
-			e.printStackTrace();
-			System.out.println(e.getMessage());
-		}
+		new Thread(new UserInput()).start();
 
 	}
 

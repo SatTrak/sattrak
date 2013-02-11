@@ -38,11 +38,11 @@ public class GpsResponsePacket extends SerialPacket {
 	// GETTERS
 	// ===============================
 
-	public double getAzimuth() {
+	public double getLatitude() {
 		return latitude;
 	}
 
-	public double getElevation() {
+	public double getLongitude() {
 		return longitude;
 	}
 

@@ -21,7 +21,7 @@ public abstract class SerialComm {
 	// ===============================
 	private static final int COMM_TIMEOUT = 2000;
 	private static final int BAUD_RATE = 9600;
-	private static final int DATA_SIZE = 1024;
+	private static final int DATA_SIZE = 24;
 
 	// ===============================
 	// INSTANCE VARIABLES
@@ -84,8 +84,8 @@ public abstract class SerialComm {
 			}
 		};
 
-		serialPort.addEventListener(packetReceivedListener);
-		serialPort.notifyOnDataAvailable(true);
+		// serialPort.addEventListener(packetReceivedListener);
+		// serialPort.notifyOnDataAvailable(true);
 	}
 
 	/**
@@ -95,12 +95,12 @@ public abstract class SerialComm {
 	 */
 	public byte[] read() {
 		byte[] data = new byte[DATA_SIZE];
-		InputStream in;
 		try {
-			in = serialPort.getInputStream();
+			InputStream in = serialPort.getInputStream();
 			in.read(data);
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.exit(-1);
 		}
 
 		return data;
@@ -113,17 +113,14 @@ public abstract class SerialComm {
 	 *            the byte array of outgoing data
 	 * @return true if the write was successful
 	 */
-	public boolean write(byte[] data) {
+	public void write(byte[] data) {
 		OutputStream out;
-		boolean success = false;
 		try {
 			out = serialPort.getOutputStream();
 			out.write(data);
-			success = true;
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.exit(-1);
 		}
-
-		return success;
 	}
 }

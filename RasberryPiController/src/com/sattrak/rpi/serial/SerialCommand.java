@@ -2,28 +2,30 @@ package com.sattrak.rpi.serial;
 
 public enum SerialCommand {
 	//@formatter:off
-	NULL(0x00),
-	ACK(0x01),
-	NACK(0x02),
-	SET_ORIENTATION(0x03, 0x01),
-	READ_ORIENTATION(0x04, 0x05),
-	RESPONSE_ORIENTATION(0x05, 0x01),
-	READ_ENV(0x06, 0x07),
-	RESPONSE_ENV(0x07, 0x01),
-	READ_GPS(0x08, 0x09),
-	RESPONSE_GPS(0x09, 0x01);
+	NULL(0x00, "Null"),
+	ACK(0x01, "Ack"),
+	NACK(0x02, "Nack"),
+	SET_ORIENTATION(0x03, 0x01, "Orientation Set"),
+	READ_ORIENTATION(0x04, 0x05, "Orientation Read"),
+	RESPONSE_ORIENTATION(0x05, 0x01, "Orientation Response"),
+	READ_ENV(0x06, 0x07, "Environmental Read"),
+	RESPONSE_ENV(0x07, 0x01, "Environmental Response"),
+	READ_GPS(0x08, 0x09, "GPS Read"),
+	RESPONSE_GPS(0x09, 0x01, "GPS Response");
 	//@formatter:on
 
 	private byte value;
 	private SerialCommand response;
+	private String name;
 
-	private SerialCommand(int value) {
-		this(value, 0x00);
+	private SerialCommand(int value, String name) {
+		this(value, 0x00, name);
 	}
 
-	private SerialCommand(int value, int response) {
+	private SerialCommand(int value, int response, String name) {
 		this.value = (byte) value;
 		this.response = fromValue((byte) response);
+		this.name = name;
 	}
 
 	public static SerialCommand fromValue(byte value) {
@@ -57,6 +59,11 @@ public enum SerialCommand {
 
 	public SerialCommand getResponse() {
 		return response;
+	}
+
+	@Override
+	public String toString() {
+		return name;
 	}
 
 }
