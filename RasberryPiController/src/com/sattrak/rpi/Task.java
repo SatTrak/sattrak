@@ -4,6 +4,8 @@ import java.util.Calendar;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+import com.sattrak.rpi.util.FormatUtil;
+
 public class Task implements Delayed {
 
 	// ===============================
@@ -14,6 +16,7 @@ public class Task implements Delayed {
 	// INSTANCE VARIABLES
 	// ===============================
 
+	private String title;
 	private Calendar dateTime;
 	private long duration;
 	private double azimuth;
@@ -23,8 +26,9 @@ public class Task implements Delayed {
 	// CONSTRUCTORS
 	// ===============================
 
-	public Task(Calendar dateTime, long duration, double azimuth,
+	public Task(String title, Calendar dateTime, long duration, double azimuth,
 			double elevation) {
+		this.title = title;
 		this.dateTime = dateTime;
 		this.duration = duration;
 		this.azimuth = azimuth;
@@ -34,6 +38,10 @@ public class Task implements Delayed {
 	// ===============================
 	// GETTERS
 	// ===============================
+
+	public String getTitle() {
+		return title;
+	}
 
 	public Calendar getDateTime() {
 		return dateTime;
@@ -54,6 +62,10 @@ public class Task implements Delayed {
 	// ===============================
 	// SETTERS
 	// ===============================
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
 
 	public void setDateTime(Calendar dateTime) {
 		this.dateTime = dateTime;
@@ -99,6 +111,18 @@ public class Task implements Delayed {
 		long delayInMillis = dateTime.getTimeInMillis()
 				- System.currentTimeMillis();
 		return unit.convert(delayInMillis, unit);
+	}
+
+	@Override
+	public String toString() {
+		// @formatter:off
+		return "Title: " + title + "\n" + 
+				"Date: " + FormatUtil.getDateString(dateTime) + "\n" + 
+				"Time: " + FormatUtil.getTimeString(dateTime) + "\n" + 
+				"Duration: " + duration + " ms\n" + 
+				"Azimuth: " + azimuth + " degrees\n" +
+				"Elevation: " + elevation + " degrees";
+		// @formatter:on
 	}
 
 }

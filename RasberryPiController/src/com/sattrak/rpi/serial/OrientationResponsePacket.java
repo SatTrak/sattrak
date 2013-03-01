@@ -54,8 +54,8 @@ public class OrientationResponsePacket extends SerialPacket {
 	@Override
 	protected byte[] argsToBytes() {
 		// Convert arguments to byte arrays
-		byte[] azBytes = ByteConverter.doubleToBytes(azimuth);
-		byte[] elBytes = ByteConverter.doubleToBytes(elevation);
+		byte[] azBytes = ByteConverter.doubleToStringBytes(azimuth);
+		byte[] elBytes = ByteConverter.doubleToStringBytes(elevation);
 
 		// Create byte array for all arguments
 		byte[] argBytes = new byte[azBytes.length + elBytes.length];
@@ -69,8 +69,9 @@ public class OrientationResponsePacket extends SerialPacket {
 
 	@Override
 	protected void bytesToArgs(byte[] argBytes) {
-		azimuth = ByteConverter.bytesToDouble(argBytes, LOCATION_AZIMUTH);
-		elevation = ByteConverter.bytesToDouble(argBytes, LOCATION_ELEVATION);
+		azimuth = ByteConverter.stringBytesToDouble(argBytes, LOCATION_AZIMUTH);
+		elevation = ByteConverter.stringBytesToDouble(argBytes,
+				LOCATION_ELEVATION);
 	}
 
 }

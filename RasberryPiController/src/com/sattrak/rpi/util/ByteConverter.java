@@ -4,6 +4,8 @@ import java.nio.ByteBuffer;
 
 public class ByteConverter {
 
+	public static final int LENGTH_DOUBLE = 8;
+
 	/**
 	 * Private constructor so the class can't be instantiated.
 	 */
@@ -66,10 +68,46 @@ public class ByteConverter {
 	 * 
 	 * @param bytes
 	 *            the byte array
+	 * @param offset
+	 *            the byte at which to start extracting the double
 	 * @return the corresponding double
 	 */
 	public static double bytesToDouble(byte[] bytes, int offset) {
 		return ByteBuffer.wrap(bytes).getDouble(offset);
+	}
+
+	/**
+	 * Convert a double into a byte array, where the bytes are a string
+	 * representation of the double. The width of the string is LENGTH_DOUBLE
+	 * characters (including the decimal point), and the number of decimal
+	 * places is 2. The string is zero-padded at the beginning.
+	 * 
+	 * @param value
+	 *            the double to convert
+	 * @return the equivalent byte array of the double as a string
+	 */
+	public static byte[] doubleToStringBytes(double value) {
+		String valueString = String.format("%0" + (LENGTH_DOUBLE - 1) + ".2f",
+				value);
+		byte[] bytes = new byte[LENGTH_DOUBLE];
+		System.arraycopy(valueString.getBytes(), 0, bytes, 0,
+				valueString.length());
+		return bytes;
+	}
+
+	/**
+	 * Convert a subset of bytes, starting at offset with length LENGTH_DOUBLE,
+	 * into a double. The double should be represented as a string in the byte
+	 * array.
+	 * 
+	 * @param bytes
+	 *            the byte array
+	 * @param offset
+	 *            the byte at which to start extracting the double
+	 * @return the corresponding double
+	 */
+	public static double stringBytesToDouble(byte[] bytes, int offset) {
+		return Double.parseDouble(new String(bytes, offset, LENGTH_DOUBLE));
 	}
 
 	/**

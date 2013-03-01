@@ -12,22 +12,22 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	private static final int LOCATION_TEMP = 0;
 
 	// Argument 2: elevation angle
-	private static final int LOCATION_HUMIDITY = 2;
+	private static final int LOCATION_HUMIDITY = 8;
 
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
-	private short temperature;
-	private short humidity;
+	private double temperature;
+	private double humidity;
 
 	// ===============================
 	// CONSTRUCTORS
 	// ===============================
 
-	public EnvironmentalResponsePacket(int temperature, int humidity) {
+	public EnvironmentalResponsePacket(double temperature, double humidity) {
 		setCommand(SerialCommand.RESPONSE_ENV);
-		this.temperature = (short) temperature;
-		this.humidity = (short) humidity;
+		this.temperature = temperature;
+		this.humidity = humidity;
 	}
 
 	public EnvironmentalResponsePacket(byte[] packetBytes)
@@ -39,11 +39,11 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	// GETTERS
 	// ===============================
 
-	public short getTemperature() {
+	public double getTemperature() {
 		return temperature;
 	}
 
-	public short getHumidity() {
+	public double getHumidity() {
 		return humidity;
 	}
 
@@ -54,8 +54,8 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	@Override
 	protected byte[] argsToBytes() {
 		// Convert arguments to byte arrays
-		byte[] tempBytes = ByteConverter.shortToBytes(temperature);
-		byte[] humBytes = ByteConverter.shortToBytes(humidity);
+		byte[] tempBytes = ByteConverter.doubleToStringBytes(temperature);
+		byte[] humBytes = ByteConverter.doubleToStringBytes(humidity);
 
 		// Create byte array for all arguments
 		byte[] argBytes = new byte[tempBytes.length + humBytes.length];
@@ -70,8 +70,10 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 
 	@Override
 	protected void bytesToArgs(byte[] argBytes) {
-		temperature = ByteConverter.bytesToShort(argBytes, LOCATION_TEMP);
-		humidity = ByteConverter.bytesToShort(argBytes, LOCATION_HUMIDITY);
+		temperature = ByteConverter
+				.stringBytesToDouble(argBytes, LOCATION_TEMP);
+		humidity = ByteConverter.stringBytesToDouble(argBytes,
+				LOCATION_HUMIDITY);
 	}
 
 }

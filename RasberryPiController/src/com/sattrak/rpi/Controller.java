@@ -8,22 +8,23 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.StringTokenizer;
 import java.util.concurrent.DelayQueue;
-import java.util.concurrent.TimeUnit;
 
 import com.sattrak.rpi.serial.AckPacket;
 import com.sattrak.rpi.serial.EnvironmentalReadPacket;
 import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
+import com.sattrak.rpi.serial.EstablishConnectionPacket;
 import com.sattrak.rpi.serial.GpsReadPacket;
 import com.sattrak.rpi.serial.GpsResponsePacket;
 import com.sattrak.rpi.serial.NackPacket;
 import com.sattrak.rpi.serial.OrientationResponsePacket;
-import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
 import com.sattrak.rpi.serial.SerialCommand;
 import com.sattrak.rpi.serial.SerialPacket;
 import com.sattrak.rpi.serial.SerialPacket.InvalidPacketException;
 import com.sattrak.rpi.util.ByteConverter;
+import com.sattrak.rpi.util.FormatUtil;
 
 /**
  * A class that holds a delay queue of tasks to be completed. This queue is
@@ -60,17 +61,16 @@ public class Controller {
 	 *             if a serial port error occurs
 	 */
 	public Controller() throws Exception {
+		// Initialize the task thread
+		tasks = new DelayQueue<Task>();
+		startTaskThread();
+
 		// Initialize Arduino communication on SERIAL_PORT
 		arduino = new ArduinoComm(SERIAL_PORT);
 
 		// Establish connection with Arduino
 		arduino.establishConnection();
 		System.out.println("Connection established with Arduino!\n");
-
-		// Initialize the task thread
-		tasks = new DelayQueue<Task>();
-		// startTaskThread();
-		// generateTasks();
 	}
 
 	// ===============================
@@ -164,7 +164,7 @@ public class Controller {
 				EnvironmentalResponsePacket envRespPacket = new EnvironmentalResponsePacket(
 						packetBytes);
 				argString = "Temperature: " + envRespPacket.getTemperature()
-						+ " degrees F\n	Humidity: "
+						+ " degrees C\n	Humidity: "
 						+ envRespPacket.getHumidity() + " %";
 				// TODO
 				break;
@@ -206,22 +206,17 @@ public class Controller {
 			@Override
 			public void run() {
 				System.out.println("Task thread started at "
-						+ getTimeString(new GregorianCalendar()));
+						+ FormatUtil.getTimeString(new GregorianCalendar()));
 				while (true) {
 					Task toExecute;
 					try {
 						toExecute = tasks.take();
-						System.out.println("Executing task:");
-						System.out.println("  Intended Time: "
-								+ getTimeString(toExecute.getDateTime()));
-						System.out.println("  Actual Time: "
-								+ getTimeString(new GregorianCalendar()));
-						System.out.println("  Duration: "
-								+ toExecute.getDuration() + " ms");
-						System.out.println("  Azimuth: "
-								+ toExecute.getAzimuth() + " degrees");
-						System.out.println("  Elevation: "
-								+ toExecute.getElevation() + " degrees");
+						System.out.println("\nExecuting task:");
+						System.out.println(toExecute.toString());
+						System.out
+								.println("Actual Time: "
+										+ FormatUtil
+												.getTimeString(new GregorianCalendar()));
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 						break;
@@ -279,9 +274,11 @@ public class Controller {
 				tries++;
 
 				// Send a test packet
-				OrientationSetPacket testPacket = new OrientationSetPacket(0, 0);
+				EstablishConnectionPacket testPacket = new EstablishConnectionPacket();
 				write(testPacket.toBytes());
 				System.out.println("Sent packet " + tries);
+				System.out.println("Packet bytes: "
+						+ ByteConverter.bytesToHex(testPacket.toBytes()));
 
 				// Wait for response
 				byte[] packetBytes = read();
@@ -318,18 +315,8 @@ public class Controller {
 
 				// Delay to let the Arduino get ready
 				Thread.sleep(2000);
-			} while (!(isAck && ackd == SerialCommand.SET_ORIENTATION));
+			} while (!(isAck && ackd == SerialCommand.ESTABLISH_CONNECTION));
 
-			// Flush everything from read buffer
-			boolean flushSucceeded = false;
-			while (!flushSucceeded) {
-				try {
-					flushReadBuffer();
-					flushSucceeded = true;
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
 		}
 
 		/**
@@ -354,28 +341,6 @@ public class Controller {
 	// ===============================
 
 	/**
-	 * Debugging method for generating arbitrary tasks
-	 */
-	private void generateTasks() {
-		Calendar dateTime0 = new GregorianCalendar();
-		dateTime0.set(Calendar.MINUTE, dateTime0.get(Calendar.MINUTE) + 1);
-		Task t0 = new Task(dateTime0, 100, 345, 175);
-		System.out.println("Task delay: " + t0.getDelay(TimeUnit.MILLISECONDS));
-		addTask(t0);
-	}
-
-	/**
-	 * Debugging method for converting a Calendar time into a string
-	 * 
-	 * @param time
-	 * @return
-	 */
-	private String getTimeString(Calendar time) {
-		return time.get(Calendar.HOUR) + ":" + time.get(Calendar.MINUTE) + ":"
-				+ time.get(Calendar.SECOND);
-	}
-
-	/**
 	 * This Runnable is executed in a thread spawned from main. It acts as a
 	 * text-based user interface for sending requests to the Arduino.
 	 */
@@ -383,9 +348,10 @@ public class Controller {
 		//@formatter:off
 		private static final String OPTIONS = "\nOptions:\n" +
 				"----------\n" +
-				"1. Get Environmental Data\n" +
-				"2. Get GPS Location\n" +
-				"3. Quit\n";
+				"1. Submit a New Task\n" +
+				"2. Get Environmental Data\n" +
+				"3. Get GPS Location\n" +
+				"4. Quit\n";
 		//@formatter:on
 		private static final String REQUEST_INPUT = "Enter option number: ";
 
@@ -404,6 +370,40 @@ public class Controller {
 						option = keyboard.readLine();
 
 						if (option.equals("1")) {
+							// Prompt user for task title
+							System.out.print("Task title: ");
+							String title = keyboard.readLine();
+
+							// Prompt user for date and time
+							Calendar date = promptForDate(keyboard);
+							Calendar time = promptForTime(keyboard);
+							date.set(Calendar.HOUR_OF_DAY,
+									time.get(Calendar.HOUR_OF_DAY));
+							date.set(Calendar.MINUTE, time.get(Calendar.MINUTE));
+							date.set(Calendar.SECOND, time.get(Calendar.SECOND));
+							date.set(Calendar.MILLISECOND, time.get(0));
+
+							// Prompt user for duration in ms
+							long duration = promptForDuration(keyboard);
+
+							// Prompt user for azimuth and elevation angles
+							double azimuth = promptForAngle(keyboard, "Azimuth");
+							double elevation = promptForAngle(keyboard,
+									"Elevation");
+
+							// Create a task
+							Task newTask = new Task(title, date, duration,
+									azimuth, elevation);
+
+							// Prompt user to confirm task details
+							System.out.println("\nTask Details:");
+							System.out.println(newTask.toString());
+							System.out.print("Submit this task (y/n)?");
+
+							if (keyboard.readLine().equalsIgnoreCase(("y")))
+								controller.addTask(newTask);
+
+						} else if (option.equals("2")) {
 							// Get env data
 							System.out
 									.println("Requesting Environmental Data...\n");
@@ -414,17 +414,16 @@ public class Controller {
 								controller.handlePacket(packetBytes);
 							}
 
-						} else if (option.equals("2")) {
+						} else if (option.equals("3")) {
 							// Get gps location
 							System.out.println("Requesting GPS Location...\n");
 							GpsReadPacket packet = new GpsReadPacket();
 							controller.writePacket(packet);
-							controller.readAllPackets();
 							List<byte[]> packets = controller.readAllPackets();
 							for (byte[] packetBytes : packets) {
 								controller.handlePacket(packetBytes);
 							}
-						} else if (option.equals("3")) {
+						} else if (option.equals("4")) {
 							System.out.println("Quitting...");
 							System.exit(0);
 						} else {
@@ -442,6 +441,140 @@ public class Controller {
 				System.exit(-1);
 			}
 
+		}
+
+		private Calendar promptForDate(BufferedReader keyboard)
+				throws IOException {
+			Calendar date = new GregorianCalendar();
+			boolean valid = true;
+			do {
+				// Prompt and read input
+				System.out
+						.print("Task date (Format = DD/MM/YYYY, Default = today): ");
+				String dateString = keyboard.readLine();
+
+				// If input is empty, return current date as default
+				if (!dateString.isEmpty()) {
+					// Tokenize input by slashes
+					StringTokenizer dateTokenizer = new StringTokenizer(
+							dateString, "/");
+					String[] dateTokens = new String[dateTokenizer
+							.countTokens()];
+					int i = 0;
+					while (dateTokenizer.hasMoreTokens()) {
+						dateTokens[i] = dateTokenizer.nextToken();
+						i++;
+					}
+
+					// Check that the input format was correct
+					if (dateTokens.length == 3) {
+						valid = true;
+
+						// Parse input into a Calenar object
+						try {
+							int day = Integer.parseInt(dateTokens[0]);
+							int month = Integer.parseInt(dateTokens[1]) - 1;
+							int year = Integer.parseInt(dateTokens[2]);
+							date = new GregorianCalendar(year, month, day);
+						} catch (NumberFormatException e) {
+							valid = false;
+							System.out.println("Format must be DD/MM/YYYY");
+						}
+					} else {
+						valid = false;
+						System.out.println("Format must be DD/MM/YYYY");
+					}
+				} else {
+					valid = true;
+				}
+			} while (!valid); // Repeat until valid input is received
+
+			return date;
+		}
+
+		private Calendar promptForTime(BufferedReader keyboard)
+				throws IOException {
+			Calendar time = new GregorianCalendar();
+			boolean valid = true;
+			do {
+				// Prompt and read input
+				System.out
+						.print("Task time (Format = HH:MM:SS on 24-hour scale): ");
+				String dateString = keyboard.readLine();
+
+				// Tokenize input by colons
+				StringTokenizer timeTokenizer = new StringTokenizer(dateString,
+						":");
+				String[] timeTokens = new String[timeTokenizer.countTokens()];
+				int i = 0;
+				while (timeTokenizer.hasMoreTokens()) {
+					timeTokens[i] = timeTokenizer.nextToken();
+					i++;
+				}
+
+				// Check that the input format was correct
+				if (timeTokens.length == 3) {
+					valid = true;
+
+					// Parse input into Calendar object
+					try {
+						int hour = Integer.parseInt(timeTokens[0]);
+						int minute = Integer.parseInt(timeTokens[1]);
+						int second = Integer.parseInt(timeTokens[2]);
+
+						time.set(Calendar.HOUR_OF_DAY, hour);
+						time.set(Calendar.MINUTE, minute);
+						time.set(Calendar.SECOND, second);
+					} catch (NumberFormatException e) {
+						valid = false;
+						System.out.println("Format must be HH:MM:SS");
+					}
+				} else {
+					valid = false;
+					System.out.println("Format must be HH:MM:SS");
+				}
+			} while (!valid);
+
+			return time;
+		}
+
+		private long promptForDuration(BufferedReader keyboard)
+				throws IOException {
+			long duration = 0;
+			boolean valid = true;
+			do {
+				System.out.print("Exposure duration (ms): ");
+				String durationString = keyboard.readLine();
+				try {
+					duration = Long.parseLong(durationString);
+					valid = true;
+				} catch (NumberFormatException e) {
+					valid = false;
+					System.out.println("Format must be an integer number");
+				}
+			} while (!valid);
+
+			return duration;
+		}
+
+		private double promptForAngle(BufferedReader keyboard, String angleName)
+				throws IOException {
+			double angle = 0;
+			boolean valid = true;
+			do {
+				System.out.print(angleName + " angle (degrees): ");
+				String angleString = keyboard.readLine();
+				try {
+					angle = Double.parseDouble(angleString);
+					valid = true;
+				} catch (NumberFormatException e) {
+					valid = false;
+					System.out
+							.println("Format must be an floating point number");
+				}
+			} while (!valid);
+
+			return angle;
 		}
 	}
 

@@ -11,7 +11,8 @@ public enum SerialCommand {
 	READ_ENV(0x06, 0x07, "Environmental Read"),
 	RESPONSE_ENV(0x07, 0x01, "Environmental Response"),
 	READ_GPS(0x08, 0x09, "GPS Read"),
-	RESPONSE_GPS(0x09, 0x01, "GPS Response");
+	RESPONSE_GPS(0x09, 0x01, "GPS Response"),
+	ESTABLISH_CONNECTION(0x0A, 0x01, "Establish Connection");
 	//@formatter:on
 
 	private byte value;
@@ -48,6 +49,8 @@ public enum SerialCommand {
 			return READ_GPS;
 		case 0x09:
 			return RESPONSE_GPS;
+		case 0x0A:
+			return ESTABLISH_CONNECTION;
 		default:
 			return NULL;
 		}

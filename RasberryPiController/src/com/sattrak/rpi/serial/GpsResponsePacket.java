@@ -53,8 +53,8 @@ public class GpsResponsePacket extends SerialPacket {
 	@Override
 	protected byte[] argsToBytes() {
 		// Convert arguments to byte arrays
-		byte[] latBytes = ByteConverter.doubleToBytes(latitude);
-		byte[] lonBytes = ByteConverter.doubleToBytes(longitude);
+		byte[] latBytes = ByteConverter.doubleToStringBytes(latitude);
+		byte[] lonBytes = ByteConverter.doubleToStringBytes(longitude);
 
 		// Create byte array for all arguments
 		byte[] argBytes = new byte[latBytes.length + lonBytes.length];
@@ -69,8 +69,10 @@ public class GpsResponsePacket extends SerialPacket {
 
 	@Override
 	protected void bytesToArgs(byte[] argBytes) {
-		latitude = ByteConverter.bytesToDouble(argBytes, LOCATION_LATITUDE);
-		longitude = ByteConverter.bytesToDouble(argBytes, LOCATION_LONGITUDE);
+		latitude = ByteConverter.stringBytesToDouble(argBytes,
+				LOCATION_LATITUDE);
+		longitude = ByteConverter.stringBytesToDouble(argBytes,
+				LOCATION_LONGITUDE);
 	}
 
 }
