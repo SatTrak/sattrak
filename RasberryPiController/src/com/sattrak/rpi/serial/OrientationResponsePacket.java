@@ -74,4 +74,12 @@ public class OrientationResponsePacket extends SerialPacket {
 				LOCATION_ELEVATION);
 	}
 
+	@Override
+	protected String argsToString() {
+		//@formatter:off
+		return 	"Azimuth: " + azimuth + " degrees\n" +
+				"Elevation: " + elevation + " degrees";
+		//@formatter:on
+	}
+
 }

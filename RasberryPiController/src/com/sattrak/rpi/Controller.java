@@ -2,28 +2,18 @@ package com.sattrak.rpi;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
-import java.util.List;
 import java.util.StringTokenizer;
 import java.util.concurrent.DelayQueue;
 
-import com.sattrak.rpi.serial.AckPacket;
 import com.sattrak.rpi.serial.EnvironmentalReadPacket;
 import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
-import com.sattrak.rpi.serial.EstablishConnectionPacket;
 import com.sattrak.rpi.serial.GpsReadPacket;
 import com.sattrak.rpi.serial.GpsResponsePacket;
-import com.sattrak.rpi.serial.NackPacket;
-import com.sattrak.rpi.serial.OrientationResponsePacket;
+import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
-import com.sattrak.rpi.serial.SerialCommand;
-import com.sattrak.rpi.serial.SerialPacket;
-import com.sattrak.rpi.serial.SerialPacket.InvalidPacketException;
-import com.sattrak.rpi.util.ByteConverter;
 import com.sattrak.rpi.util.FormatUtil;
 
 /**
@@ -46,8 +36,9 @@ public class Controller {
 	// INSTANCE VARIABLES
 	// ===============================
 
-	private ArduinoComm arduino;
+	private SerialComm arduino;
 	private DelayQueue<Task> tasks;
+	private Thread taskThread;
 
 	// ===============================
 	// CONSTRUCTORS
@@ -62,11 +53,10 @@ public class Controller {
 	 */
 	public Controller() throws Exception {
 		// Initialize the task thread
-		tasks = new DelayQueue<Task>();
 		startTaskThread();
 
 		// Initialize Arduino communication on SERIAL_PORT
-		arduino = new ArduinoComm(SERIAL_PORT);
+		arduino = new SerialComm(SERIAL_PORT);
 
 		// Establish connection with Arduino
 		arduino.establishConnection();
@@ -88,120 +78,158 @@ public class Controller {
 	}
 
 	/**
-	 * Write the given SerialPacket to the Arduino
+	 * Execute the given task by sending commands to the Arduino
 	 * 
-	 * @param packet
-	 *            the packet to write
-	 * @throws IOException
-	 *             if the write failed
+	 * @param t
+	 *            the task to execute
+	 * @throws Exception
 	 */
-	public void writePacket(SerialPacket packet) throws IOException {
-		arduino.write(packet.toBytes());
+	public void executeTask(Task t) throws Exception {
+		OrientationSetPacket oSetPacket = new OrientationSetPacket(
+				t.getAzimuth(), t.getElevation());
+		arduino.sendAndReceive(oSetPacket);
+		// TODO
 	}
 
 	/**
-	 * Read a packet from the Arduino. Blocks until available.
+	 * Request environmental data from the Arduino.
 	 * 
-	 * @return the packet byte array
-	 * @throws IOException
-	 *             if the read failed
+	 * @return the response packet containing the environmental data
+	 * @throws Exception
+	 *             if the correct response was not received
 	 */
-	public byte[] readPacket() throws IOException {
-		return arduino.read();
+	public EnvironmentalResponsePacket getEnvironmentalData() throws Exception {
+		return (EnvironmentalResponsePacket) arduino
+				.sendAndReceive(new EnvironmentalReadPacket());
 	}
 
 	/**
-	 * Reads packets from Arduino until no more are available. Blocks for first
-	 * read only.
+	 * Request GPS data from the Arduino.
 	 * 
-	 * @return a list of all packets read
-	 * @throws IOException
-	 *             if any read failed
+	 * @return the response packet containing the GPS data
+	 * @throws Exception
+	 *             if the correct response was not received
 	 */
-	public List<byte[]> readAllPackets() throws IOException {
-		List<byte[]> packets = new ArrayList<byte[]>();
-		do {
-			packets.add(arduino.read());
-		} while (arduino.packetAvailable());
-		return packets;
+	public GpsResponsePacket getGpsData() throws Exception {
+		return (GpsResponsePacket) arduino.sendAndReceive(new GpsReadPacket());
 	}
 
-	/**
-	 * Handle a packet received from the Arduino. How it is handled depends on
-	 * the command.
-	 * 
-	 * @param packetBytes
-	 *            the byte array received
-	 */
-	public void handlePacket(byte[] packetBytes) {
-		SerialCommand command = SerialPacket.getCommand(packetBytes);
-		String commandString = command.toString();
-		String argString = "";
-		try {
-			// Handle all commands that could have been sent by the Arduino
-			switch (command) {
-			case ACK:
-				AckPacket ackPacket = new AckPacket(packetBytes);
-				argString = "Ack'd Command: "
-						+ ackPacket.getAckdCommand().toString();
-				// TODO
-				break;
-			case NACK:
-				NackPacket nackPacket = new NackPacket(packetBytes);
-				argString = "Nack'd Command: "
-						+ nackPacket.getNackdCommand().toString();
-				// TODO
-				break;
-			case RESPONSE_ORIENTATION:
-				OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
-						packetBytes);
-				argString = "Azimuth: " + oRespPacket.getAzimuth()
-						+ "degrees\n	Elevation: " + oRespPacket.getElevation()
-						+ " degrees";
-				// TODO
-				break;
-			case RESPONSE_ENV:
-				EnvironmentalResponsePacket envRespPacket = new EnvironmentalResponsePacket(
-						packetBytes);
-				argString = "Temperature: " + envRespPacket.getTemperature()
-						+ " degrees C\n	Humidity: "
-						+ envRespPacket.getHumidity() + " %";
-				// TODO
-				break;
-			case RESPONSE_GPS:
-				GpsResponsePacket gpsRespPacket = new GpsResponsePacket(
-						packetBytes);
-				argString = "Latitude: " + gpsRespPacket.getLatitude()
-						+ " degrees\n	Longitude: "
-						+ gpsRespPacket.getLongitude() + " degrees";
-				// TODO
-				break;
-			default:
-				break;
-			}
+	// /**
+	// * Write the given SerialPacket to the Arduino
+	// *
+	// * @param packet
+	// * the packet to write
+	// * @throws IOException
+	// * if the write failed
+	// */
+	// public void writePacket(SerialPacket packet) throws IOException {
+	// arduino.write(packet.toBytes());
+	// }
+	//
+	// /**
+	// * Read a packet from the Arduino. Blocks until available.
+	// *
+	// * @return the packet byte array
+	// * @throws IOException
+	// * if the read failed
+	// */
+	// public byte[] readPacket() throws IOException {
+	// return arduino.read();
+	// }
 
-			System.out.println("\nReceived Packet");
-			System.out.println("Command: " + commandString);
-			System.out.println("Arguments: " + argString);
-			System.out.println("Raw bytes: "
-					+ ByteConverter.bytesToHex(packetBytes) + "\n");
-		} catch (InvalidPacketException e) {
-			e.printStackTrace();
-			System.out.println(e.getMessage());
-		}
+	// /**
+	// * Reads packets from Arduino until no more are available. Blocks for
+	// first
+	// * read only.
+	// *
+	// * @return a list of all packets read
+	// * @throws IOException
+	// * if any read failed
+	// */
+	// public List<byte[]> readAllPackets() throws IOException {
+	// List<byte[]> packets = new ArrayList<byte[]>();
+	// do {
+	// packets.add(arduino.read());
+	// } while (arduino.packetAvailable());
+	// return packets;
+	// }
 
-	}
+	// /**
+	// * Handle a packet received from the Arduino. How it is handled depends on
+	// * the command.
+	// *
+	// * @param packetBytes
+	// * the byte array received
+	// */
+	// public void handlePacket(byte[] packetBytes) {
+	// SerialCommand command = SerialPacket.getCommand(packetBytes);
+	// String commandString = command.toString();
+	// String argString = "";
+	// try {
+	// // Handle all commands that could have been sent by the Arduino
+	// switch (command) {
+	// case ACK:
+	// AckPacket ackPacket = new AckPacket(packetBytes);
+	// argString = "Ack'd Command: "
+	// + ackPacket.getAckdCommand().toString();
+	// break;
+	// case NACK:
+	// NackPacket nackPacket = new NackPacket(packetBytes);
+	// argString = "Nack'd Command: "
+	// + nackPacket.getNackdCommand().toString();
+	// break;
+	// case RESPONSE_ORIENTATION:
+	// OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
+	// packetBytes);
+	// argString = "Azimuth: " + oRespPacket.getAzimuth()
+	// + "degrees\n	Elevation: " + oRespPacket.getElevation()
+	// + " degrees";
+	// break;
+	// case RESPONSE_ENV:
+	// EnvironmentalResponsePacket envRespPacket = new
+	// EnvironmentalResponsePacket(
+	// packetBytes);
+	// argString = "Temperature: " + envRespPacket.getTemperature()
+	// + " degrees C\n	Humidity: "
+	// + envRespPacket.getHumidity() + " %";
+	// break;
+	// case RESPONSE_GPS:
+	// GpsResponsePacket gpsRespPacket = new GpsResponsePacket(
+	// packetBytes);
+	// argString = "Latitude: " + gpsRespPacket.getLatitude()
+	// + " degrees\n	Longitude: "
+	// + gpsRespPacket.getLongitude() + " degrees";
+	// break;
+	// default:
+	// break;
+	// }
+	//
+	// System.out.println("\nReceived Packet");
+	// System.out.println("Command: " + commandString);
+	// System.out.println("Arguments: " + argString);
+	// System.out.println("Raw bytes: "
+	// + ByteConverter.bytesToHex(packetBytes) + "\n");
+	// } catch (InvalidPacketException e) {
+	// e.printStackTrace();
+	// }
+	//
+	// }
 
 	// ===============================
 	// PRIVATE METHODS
 	// ===============================
 
 	/**
-	 * Create a runnable to execute tasks in the delay queue and start a new
-	 * thread with this runnable.
+	 * Start a thread to execute tasks in the delay queue.
 	 */
 	private void startTaskThread() {
-		Runnable executeTask = new Runnable() {
+		// Initialize DelayQueue of tasks
+		tasks = new DelayQueue<Task>();
+
+		// Create an infinitely looping runnable that that waits until the task
+		// DelayQueue has a task whose time is expired and then executes that
+		// task and removes it from the queue.
+		Runnable executeTasks = new Runnable() {
 
 			@Override
 			public void run() {
@@ -217,7 +245,8 @@ public class Controller {
 								.println("Actual Time: "
 										+ FormatUtil
 												.getTimeString(new GregorianCalendar()));
-					} catch (InterruptedException e) {
+						executeTask(toExecute);
+					} catch (Exception e) {
 						e.printStackTrace();
 						break;
 					}
@@ -225,119 +254,12 @@ public class Controller {
 			}
 		};
 
-		new Thread(executeTask).start();
+		taskThread = new Thread(executeTasks);
+		taskThread.start();
 	}
 
 	// ===============================
-	// INNER CLASSES
-	// ===============================
-
-	/**
-	 * Implementation of SerialComm to communicate with Arduino. Implements
-	 * handlePacket method.
-	 * 
-	 * @author Alex Thompson
-	 * 
-	 */
-	public class ArduinoComm extends SerialComm {
-
-		public ArduinoComm(String portName) throws Exception {
-			super(portName);
-		}
-
-		@Override
-		public void handleRxData(byte[] rxBytes) {
-			handlePacket(rxBytes);
-		}
-
-		/**
-		 * Send packets to Arduino until we get a valid expected response. Flush
-		 * buffer each time.
-		 * 
-		 * @throws Exception
-		 */
-		public void establishConnection() throws Exception {
-			boolean isAck = false;
-			SerialCommand ackd = SerialCommand.NULL;
-			int maxTries = 5;
-			int tries = 0;
-			System.out.println("Establishing connection with Arduino...");
-			Thread.sleep(2000);
-			do {
-				// If max tries was reached, throw an exception
-				if (tries == maxTries) {
-					throw new Exception(
-							"Failed to establish connection with Arduino: max retries reached");
-				}
-
-				// Increment number of tries
-				tries++;
-
-				// Send a test packet
-				EstablishConnectionPacket testPacket = new EstablishConnectionPacket();
-				write(testPacket.toBytes());
-				System.out.println("Sent packet " + tries);
-				System.out.println("Packet bytes: "
-						+ ByteConverter.bytesToHex(testPacket.toBytes()));
-
-				// Wait for response
-				byte[] packetBytes = read();
-				System.out.println("Received response " + tries);
-				System.out.println("Packet bytes: "
-						+ ByteConverter.bytesToHex(packetBytes));
-
-				// Check if response matches expected
-				SerialCommand response = SerialPacket.getCommand(packetBytes);
-				System.out.println("Response command: " + response.toString());
-				if (response == SerialCommand.ACK) {
-					AckPacket ackPacket;
-					try {
-						ackPacket = new AckPacket(packetBytes);
-						isAck = true;
-						ackd = ackPacket.getAckdCommand();
-						System.out
-								.println("	Ack'd command: " + ackd.toString());
-					} catch (InvalidPacketException e) {
-						e.printStackTrace();
-					}
-				}
-
-				// Flush everything from read buffer
-				boolean flushSucceeded = false;
-				while (!flushSucceeded) {
-					try {
-						flushReadBuffer();
-						flushSucceeded = true;
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-
-				// Delay to let the Arduino get ready
-				Thread.sleep(2000);
-			} while (!(isAck && ackd == SerialCommand.ESTABLISH_CONNECTION));
-
-		}
-
-		/**
-		 * Read data from serial port input stream until the stream is empty
-		 * 
-		 * @throws IOException
-		 *             if an error occurs getting the input stream or reading
-		 *             from it
-		 */
-		public void flushReadBuffer() throws IOException {
-			System.out.println("Flushing input stream...\n");
-			InputStream in = getSerialPort().getInputStream();
-			while (in.available() > 0) {
-				in.read();
-			}
-		}
-
-	}
-
-	// ===============================
-	// DEBUGGING METHODS
+	// RUNNABLES AND MAIN
 	// ===============================
 
 	/**
@@ -407,21 +329,25 @@ public class Controller {
 							// Get env data
 							System.out
 									.println("Requesting Environmental Data...\n");
-							EnvironmentalReadPacket packet = new EnvironmentalReadPacket();
-							controller.writePacket(packet);
-							List<byte[]> packets = controller.readAllPackets();
-							for (byte[] packetBytes : packets) {
-								controller.handlePacket(packetBytes);
+							try {
+								EnvironmentalResponsePacket envRespPacket = controller
+										.getEnvironmentalData();
+								System.out
+										.println("Environmental Data Received:\n");
+								System.out.println(envRespPacket.toString());
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
-
 						} else if (option.equals("3")) {
 							// Get gps location
 							System.out.println("Requesting GPS Location...\n");
-							GpsReadPacket packet = new GpsReadPacket();
-							controller.writePacket(packet);
-							List<byte[]> packets = controller.readAllPackets();
-							for (byte[] packetBytes : packets) {
-								controller.handlePacket(packetBytes);
+							try {
+								GpsResponsePacket gpsRespPacket = controller
+										.getGpsData();
+								System.out.println("GPS Data Received:\n");
+								System.out.println(gpsRespPacket.toString());
+							} catch (Exception e) {
+								e.printStackTrace();
 							}
 						} else if (option.equals("4")) {
 							System.out.println("Quitting...");

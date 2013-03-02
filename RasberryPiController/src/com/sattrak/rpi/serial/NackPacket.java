@@ -1,6 +1,5 @@
 package com.sattrak.rpi.serial;
 
-
 public class NackPacket extends SerialPacket {
 
 	// ===============================
@@ -52,6 +51,11 @@ public class NackPacket extends SerialPacket {
 	protected void bytesToArgs(byte[] argBytes) {
 		nackdCommand = SerialCommand
 				.fromValue(argBytes[LOCATION_NACKD_COMMAND]);
+	}
+
+	@Override
+	protected String argsToString() {
+		return "Nack'd Command: " + nackdCommand.toString();
 	}
 
 }

@@ -40,6 +40,14 @@ public abstract class SerialPacket {
 	 */
 	protected abstract void bytesToArgs(byte[] argBytes);
 
+	/**
+	 * Return a string representation of the packet arguments, ideally with each
+	 * argument separated by a newline.
+	 * 
+	 * @return the argument string
+	 */
+	protected abstract String argsToString();
+
 	// ===============================
 	// GETTERS
 	// ===============================
@@ -95,6 +103,11 @@ public abstract class SerialPacket {
 
 	public static SerialCommand getCommand(byte[] packetBytes) {
 		return SerialCommand.fromValue(packetBytes[LOCATION_COMMAND]);
+	}
+
+	@Override
+	public String toString() {
+		return command.toString() + "\n" + argsToString();
 	}
 
 	// ===============================

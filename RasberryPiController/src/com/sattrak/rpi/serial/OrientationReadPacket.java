@@ -30,4 +30,9 @@ public class OrientationReadPacket extends SerialPacket {
 		// Do nothing because there are no arguments
 	}
 
+	@Override
+	protected String argsToString() {
+		return "";
+	}
+
 }

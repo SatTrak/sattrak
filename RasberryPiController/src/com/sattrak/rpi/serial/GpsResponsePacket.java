@@ -75,4 +75,12 @@ public class GpsResponsePacket extends SerialPacket {
 				LOCATION_LONGITUDE);
 	}
 
+	@Override
+	protected String argsToString() {
+		//@formatter:off
+		return 	"Latitude: " + latitude + " degrees\n" +
+				"Longitude: " + longitude + " degrees";
+		//@formatter:on
+	}
+
 }

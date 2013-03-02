@@ -29,4 +29,9 @@ public class GpsReadPacket extends SerialPacket {
 		// Do nothing because there are no arguments
 	}
 
+	@Override
+	protected String argsToString() {
+		return "";
+	}
+
 }

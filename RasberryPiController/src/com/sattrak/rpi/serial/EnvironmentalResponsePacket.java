@@ -76,4 +76,12 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 				LOCATION_HUMIDITY);
 	}
 
+	@Override
+	protected String argsToString() {
+		//@formatter:off
+		return  "Temperature: " + temperature + " degrees\n" +
+				"Humidity: " + humidity + "%";
+		//@formatter:on
+	}
+
 }

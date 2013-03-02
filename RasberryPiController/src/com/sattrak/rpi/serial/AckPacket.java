@@ -1,6 +1,5 @@
 package com.sattrak.rpi.serial;
 
-
 public class AckPacket extends SerialPacket {
 
 	// ===============================
@@ -51,6 +50,11 @@ public class AckPacket extends SerialPacket {
 	@Override
 	protected void bytesToArgs(byte[] argBytes) {
 		ackdCommand = SerialCommand.fromValue(argBytes[LOCATION_ACKD_COMMAND]);
+	}
+
+	@Override
+	protected String argsToString() {
+		return "Ack'd Command: " + ackdCommand.toString();
 	}
 
 }
