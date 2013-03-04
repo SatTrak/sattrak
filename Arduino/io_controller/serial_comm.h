@@ -1,3 +1,9 @@
+// ======================= 
+// SERIAL DEFINITIONS
+// =======================
+
+#define BAUD_RATE 9600
+
 // Packet constants
 #define PACKET_LEN 24 // bytes
 #define HEADER 0xAA
@@ -29,7 +35,7 @@
 #define COMMAND_ENV_READ 0x06
 // No args
 
-#define COMMAND_ENV_RESPONSE = 0x07;
+#define COMMAND_ENV_RESPONSE 0x07
 #define LOC_TEMP 0
 #define LEN_TEMP 8
 #define LOC_HUMID 8
