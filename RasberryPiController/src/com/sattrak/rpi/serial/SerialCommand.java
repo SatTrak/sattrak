@@ -16,7 +16,7 @@ public enum SerialCommand {
 	//@formatter:on
 
 	private byte value;
-	private SerialCommand response;
+	private byte response;
 	private String name;
 
 	private SerialCommand(int value, String name) {
@@ -25,7 +25,7 @@ public enum SerialCommand {
 
 	private SerialCommand(int value, int response, String name) {
 		this.value = (byte) value;
-		this.response = fromValue((byte) response);
+		this.response = (byte) response;
 		this.name = name;
 	}
 
@@ -61,7 +61,7 @@ public enum SerialCommand {
 	}
 
 	public SerialCommand getResponse() {
-		return response;
+		return fromValue(response);
 	}
 
 	@Override

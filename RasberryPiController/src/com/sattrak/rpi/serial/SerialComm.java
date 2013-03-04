@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.util.TooManyListenersException;
 
 import com.sattrak.rpi.serial.SerialPacket.InvalidPacketException;
+import com.sattrak.rpi.util.ByteConverter;
 
 public class SerialComm {
 
@@ -167,6 +168,7 @@ public class SerialComm {
 		for (int i = 0; i < DATA_SIZE; i++) {
 			data[i] = (byte) in.read();
 		}
+		System.out.println("Received: " + ByteConverter.bytesToHex(data));
 		return data;
 	}
 
@@ -179,6 +181,7 @@ public class SerialComm {
 	 *             if the send failed
 	 */
 	public void send(byte[] data) throws IOException {
+		System.out.println("Sending: " + ByteConverter.bytesToHex(data));
 		out.write(data);
 	}
 
@@ -201,11 +204,16 @@ public class SerialComm {
 	 * @param outPacket
 	 *            the SerialPacket to send
 	 * @return the SerialPacket received in response
-	 * @throws Exception
+	 * @throws InterruptedException
+	 *             if the thread is interrupted while waiting in between tries
+	 * @throws IncorrectResponseException
 	 *             if the expected response was not received
 	 */
-	public SerialPacket sendAndReceive(SerialPacket outPacket) throws Exception {
+	public SerialPacket sendAndReceive(SerialPacket outPacket)
+			throws IncorrectResponseException, InterruptedException {
 		SerialCommand expectedResponse = outPacket.getResponse();
+		System.out
+				.println("Expecting response: " + expectedResponse.toString());
 		SerialCommand actualResponse = SerialCommand.NACK;
 		SerialPacket inPacket = new NackPacket(outPacket.getCommand());
 		byte[] packetBytes = new byte[0];
@@ -216,22 +224,25 @@ public class SerialComm {
 		int retries = 0;
 		while (!correctResponseReceived && retries < MAX_RETRIES) {
 			try {
+				System.out.println("Flushed " + flushReadBuffer()
+						+ " bytes from the read buffer");
 				send(outPacket);
 				packetBytes = receive();
 				actualResponse = SerialPacket.getCommand(packetBytes);
+				System.out
+						.println("Got response: " + actualResponse.toString());
 				if (actualResponse == expectedResponse) {
 					if (actualResponse == SerialCommand.ACK) {
-						correctResponseReceived = new AckPacket(packetBytes).getAckdCommand() == outPacket
-								.getCommand();
+						correctResponseReceived = new AckPacket(packetBytes)
+								.getAckdCommand() == outPacket.getCommand();
 					} else {
 						correctResponseReceived = true;
 					}
 				}
-			} catch (IOException e) {
+			} catch (Exception e) {
 				e.printStackTrace();
 			}
 			retries++;
-			flushReadBuffer();
 			Thread.sleep(RETRY_DELAY);
 		}
 
@@ -266,8 +277,9 @@ public class SerialComm {
 			return inPacket;
 
 		} else {
-			throw new Exception("Failed to receive " + expectedResponse
-					+ " in response to " + outPacket.getCommand());
+			throw new IncorrectResponseException("Failed to receive "
+					+ expectedResponse + " in response to "
+					+ outPacket.getCommand());
 		}
 	}
 
@@ -288,11 +300,31 @@ public class SerialComm {
 	 * @throws IOException
 	 *             if an error occurs getting the input stream or reading from
 	 *             it
+	 * @return the number of bytes flushed from the buffer
 	 */
-	public void flushReadBuffer() throws IOException {
-		System.out.println("Flushing input stream...\n");
+	public int flushReadBuffer() throws IOException {
+		int bytesFlushed = 0;
 		while (packetAvailable()) {
 			in.read();
+			bytesFlushed++;
+		}
+		return bytesFlushed;
+	}
+
+	// ===============================
+	// CUSTOM EXCEPTIONS
+	// ===============================
+
+	/**
+	 * Thrown when the received packet is not the expected response to the last
+	 * sent packet
+	 */
+	public class IncorrectResponseException extends Exception {
+
+		private static final long serialVersionUID = -597466108956740724L;
+
+		public IncorrectResponseException(String message) {
+			super(message);
 		}
 	}
 }

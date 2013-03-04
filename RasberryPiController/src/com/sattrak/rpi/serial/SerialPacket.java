@@ -147,7 +147,14 @@ public abstract class SerialPacket {
 	// CUSTOM EXCEPTIONS
 	// ===============================
 
+	/**
+	 * Thrown when a received packet does not have the correct header or
+	 * checksum
+	 */
 	public class InvalidPacketException extends Exception {
+
+		private static final long serialVersionUID = -5207396497602655163L;
+
 		public InvalidPacketException(String message) {
 			super(message);
 		}

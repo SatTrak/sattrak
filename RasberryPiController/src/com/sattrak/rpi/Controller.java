@@ -32,6 +32,11 @@ public class Controller {
 
 	private static final String SERIAL_PORT = "/dev/ttyS80";
 
+	// Length of time between setting the orientation and taking the picture.
+	// Should be at least as long as the max time it can take the motors to move
+	// to any orientation.
+	private static final long TASK_DELAY = 5000;
+
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
@@ -59,6 +64,7 @@ public class Controller {
 		arduino = new SerialComm(SERIAL_PORT);
 
 		// Establish connection with Arduino
+		System.out.println("Trying to establish connection with Arduino...");
 		arduino.establishConnection();
 		System.out.println("Connection established with Arduino!\n");
 	}
@@ -72,9 +78,17 @@ public class Controller {
 	 * 
 	 * @param t
 	 *            the task to add
+	 * @throws Exception
+	 *             if the time at which the task is scheduled for execution is
+	 *             sooner than the necessary delay (or if the time has already
+	 *             passed)
 	 */
-	public void addTask(Task t) {
-		tasks.add(t);
+	public void addTask(Task t) throws Exception {
+		if (t.getDateTime().getTimeInMillis() - System.currentTimeMillis() < TASK_DELAY)
+			throw new Exception("Not enough time to execute task "
+					+ t.getTitle());
+		else
+			tasks.add(t);
 	}
 
 	/**
@@ -87,7 +101,7 @@ public class Controller {
 	public void executeTask(Task t) throws Exception {
 		OrientationSetPacket oSetPacket = new OrientationSetPacket(
 				t.getAzimuth(), t.getElevation());
-		arduino.sendAndReceive(oSetPacket);
+		// arduino.sendAndReceive(oSetPacket);
 		// TODO
 	}
 
@@ -113,107 +127,6 @@ public class Controller {
 	public GpsResponsePacket getGpsData() throws Exception {
 		return (GpsResponsePacket) arduino.sendAndReceive(new GpsReadPacket());
 	}
-
-	// /**
-	// * Write the given SerialPacket to the Arduino
-	// *
-	// * @param packet
-	// * the packet to write
-	// * @throws IOException
-	// * if the write failed
-	// */
-	// public void writePacket(SerialPacket packet) throws IOException {
-	// arduino.write(packet.toBytes());
-	// }
-	//
-	// /**
-	// * Read a packet from the Arduino. Blocks until available.
-	// *
-	// * @return the packet byte array
-	// * @throws IOException
-	// * if the read failed
-	// */
-	// public byte[] readPacket() throws IOException {
-	// return arduino.read();
-	// }
-
-	// /**
-	// * Reads packets from Arduino until no more are available. Blocks for
-	// first
-	// * read only.
-	// *
-	// * @return a list of all packets read
-	// * @throws IOException
-	// * if any read failed
-	// */
-	// public List<byte[]> readAllPackets() throws IOException {
-	// List<byte[]> packets = new ArrayList<byte[]>();
-	// do {
-	// packets.add(arduino.read());
-	// } while (arduino.packetAvailable());
-	// return packets;
-	// }
-
-	// /**
-	// * Handle a packet received from the Arduino. How it is handled depends on
-	// * the command.
-	// *
-	// * @param packetBytes
-	// * the byte array received
-	// */
-	// public void handlePacket(byte[] packetBytes) {
-	// SerialCommand command = SerialPacket.getCommand(packetBytes);
-	// String commandString = command.toString();
-	// String argString = "";
-	// try {
-	// // Handle all commands that could have been sent by the Arduino
-	// switch (command) {
-	// case ACK:
-	// AckPacket ackPacket = new AckPacket(packetBytes);
-	// argString = "Ack'd Command: "
-	// + ackPacket.getAckdCommand().toString();
-	// break;
-	// case NACK:
-	// NackPacket nackPacket = new NackPacket(packetBytes);
-	// argString = "Nack'd Command: "
-	// + nackPacket.getNackdCommand().toString();
-	// break;
-	// case RESPONSE_ORIENTATION:
-	// OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
-	// packetBytes);
-	// argString = "Azimuth: " + oRespPacket.getAzimuth()
-	// + "degrees\n	Elevation: " + oRespPacket.getElevation()
-	// + " degrees";
-	// break;
-	// case RESPONSE_ENV:
-	// EnvironmentalResponsePacket envRespPacket = new
-	// EnvironmentalResponsePacket(
-	// packetBytes);
-	// argString = "Temperature: " + envRespPacket.getTemperature()
-	// + " degrees C\n	Humidity: "
-	// + envRespPacket.getHumidity() + " %";
-	// break;
-	// case RESPONSE_GPS:
-	// GpsResponsePacket gpsRespPacket = new GpsResponsePacket(
-	// packetBytes);
-	// argString = "Latitude: " + gpsRespPacket.getLatitude()
-	// + " degrees\n	Longitude: "
-	// + gpsRespPacket.getLongitude() + " degrees";
-	// break;
-	// default:
-	// break;
-	// }
-	//
-	// System.out.println("\nReceived Packet");
-	// System.out.println("Command: " + commandString);
-	// System.out.println("Arguments: " + argString);
-	// System.out.println("Raw bytes: "
-	// + ByteConverter.bytesToHex(packetBytes) + "\n");
-	// } catch (InvalidPacketException e) {
-	// e.printStackTrace();
-	// }
-	//
-	// }
 
 	// ===============================
 	// PRIVATE METHODS
@@ -323,7 +236,12 @@ public class Controller {
 							System.out.print("Submit this task (y/n)?");
 
 							if (keyboard.readLine().equalsIgnoreCase(("y")))
-								controller.addTask(newTask);
+								try {
+									controller.addTask(newTask);
+								} catch (Exception e) {
+									// Catch exception if task time is too soon
+									e.printStackTrace();
+								}
 
 						} else if (option.equals("2")) {
 							// Get env data

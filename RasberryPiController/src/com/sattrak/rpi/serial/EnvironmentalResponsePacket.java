@@ -80,7 +80,7 @@ public class EnvironmentalResponsePacket extends SerialPacket {
 	protected String argsToString() {
 		//@formatter:off
 		return  "Temperature: " + temperature + " degrees\n" +
-				"Humidity: " + humidity + "%";
+				"Humidity: " + humidity + " %";
 		//@formatter:on
 	}
 
