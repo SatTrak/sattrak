@@ -12,8 +12,11 @@ import com.sattrak.rpi.serial.EnvironmentalReadPacket;
 import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
 import com.sattrak.rpi.serial.GpsReadPacket;
 import com.sattrak.rpi.serial.GpsResponsePacket;
+import com.sattrak.rpi.serial.OrientationReadPacket;
+import com.sattrak.rpi.serial.OrientationResponsePacket;
 import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
+import com.sattrak.rpi.serial.SerialComm.IncorrectResponseException;
 import com.sattrak.rpi.util.FormatUtil;
 
 /**
@@ -109,10 +112,13 @@ public class Controller {
 	 * Request environmental data from the Arduino.
 	 * 
 	 * @return the response packet containing the environmental data
-	 * @throws Exception
+	 * @throws IncorrectResponseException
 	 *             if the correct response was not received
+	 * @throws InterruptedException
+	 *             if the thread was interrupted during the sendAndReceive
 	 */
-	public EnvironmentalResponsePacket getEnvironmentalData() throws Exception {
+	public EnvironmentalResponsePacket getEnvironmentalData()
+			throws IncorrectResponseException, InterruptedException {
 		return (EnvironmentalResponsePacket) arduino
 				.sendAndReceive(new EnvironmentalReadPacket());
 	}
@@ -121,11 +127,30 @@ public class Controller {
 	 * Request GPS data from the Arduino.
 	 * 
 	 * @return the response packet containing the GPS data
-	 * @throws Exception
+	 * @throws IncorrectResponseException
 	 *             if the correct response was not received
+	 * @throws InterruptedException
+	 *             if the thread was interrupted during the sendAndReceive
+	 * 
 	 */
-	public GpsResponsePacket getGpsData() throws Exception {
+	public GpsResponsePacket getGpsData() throws IncorrectResponseException,
+			InterruptedException {
 		return (GpsResponsePacket) arduino.sendAndReceive(new GpsReadPacket());
+	}
+
+	/**
+	 * Request orientation data from the Arduino
+	 * 
+	 * @return the response packet containing the orientation data
+	 * @throws IncorrectResponseException
+	 *             if the correct response was not received
+	 * @throws InterruptedException
+	 *             if the thread was interrupted during the sendAndReceive
+	 */
+	public OrientationResponsePacket getOrientation()
+			throws IncorrectResponseException, InterruptedException {
+		return (OrientationResponsePacket) arduino
+				.sendAndReceive(new OrientationReadPacket());
 	}
 
 	// ===============================
@@ -186,7 +211,8 @@ public class Controller {
 				"1. Submit a New Task\n" +
 				"2. Get Environmental Data\n" +
 				"3. Get GPS Location\n" +
-				"4. Quit\n";
+				"4. Get Orientation\n" +
+				"5. Quit\n";
 		//@formatter:on
 		private static final String REQUEST_INPUT = "Enter option number: ";
 
@@ -268,6 +294,18 @@ public class Controller {
 								e.printStackTrace();
 							}
 						} else if (option.equals("4")) {
+							System.out
+									.println("Requesting Orientation Data...\n");
+							try {
+								OrientationResponsePacket oRespPacket = controller
+										.getOrientation();
+								System.out
+										.println("Orientation Data Received:\n");
+								System.out.println(oRespPacket.toString());
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						} else if (option.equals("5")) {
 							System.out.println("Quitting...");
 							System.exit(0);
 						} else {
