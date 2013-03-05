@@ -107,9 +107,9 @@ void handle_packet(byte *packet_bytes) {
       // Send orientation response to update RPi of new location
       int ornt_args_length = LEN_AZIMUTH + LEN_ELEVATION;
       byte ornt_args[ornt_args_length];
-      ornt_args[LOC_AZIMUTH] = azimuth;
-      ornt_args[LOC_ELEVATION] = elevation;
-      send_packet(COMMAND_ORNT_SET, ornt_args, ornt_args_length);
+      insert_double(ornt_args, LOC_AZIMUTH, azimuth);
+      insert_double(ornt_args, LOC_ELEVATION, elevation);
+      send_packet(COMMAND_ORNT_RESPONSE, ornt_args, ornt_args_length);
       break;
     }
     case (COMMAND_ORNT_READ): 

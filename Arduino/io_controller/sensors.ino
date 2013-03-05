@@ -40,6 +40,15 @@ void sensors_init() {
   pinMode(INC_MOSI_PIN, OUTPUT);
   pinMode(INC_MISO_PIN, INPUT);
   pinMode(INC_SCK_PIN, OUTPUT);
+  
+  // Initialize variables
+  temperature = 0;
+  humidity = 0;
+  latitude = 0;
+  longitude = 0;
+  time = 0;
+  azimuth = 0;
+  elevation = 0;
 }
 
 void read_env() {
