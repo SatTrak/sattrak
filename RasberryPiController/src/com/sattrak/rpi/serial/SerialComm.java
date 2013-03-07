@@ -95,65 +95,6 @@ public class SerialComm {
 	public void establishConnection() throws Exception {
 		Thread.sleep(ARDUINO_INIT_DELAY);
 		sendAndReceive(new EstablishConnectionPacket());
-		// boolean isAck = false;
-		// SerialCommand ackd = SerialCommand.NULL;
-		// int tries = 0;
-		// System.out.println("Establishing connection with Arduino...");
-		// Thread.sleep(2000);
-		// do {
-		// // If max tries was reached, throw an exception
-		// if (tries == MAX_SERIAL_RETRIES) {
-		// throw new Exception(
-		// "Failed to establish connection with Arduino: max retries reached");
-		// }
-		//
-		// // Increment number of tries
-		// tries++;
-		//
-		// // Send a test packet
-		// EstablishConnectionPacket testPacket = new
-		// EstablishConnectionPacket();
-		// send(testPacket.toBytes());
-		// System.out.println("Sent packet " + tries);
-		// System.out.println("Packet bytes: "
-		// + ByteConverter.bytesToHex(testPacket.toBytes()));
-		//
-		// // Wait for response
-		// byte[] packetBytes = receive();
-		// System.out.println("Received response " + tries);
-		// System.out.println("Packet bytes: "
-		// + ByteConverter.bytesToHex(packetBytes));
-		//
-		// // Check if response matches expected
-		// SerialCommand response = SerialPacket.getCommand(packetBytes);
-		// System.out.println("Response command: " + response.toString());
-		// if (response == SerialCommand.ACK) {
-		// AckPacket ackPacket;
-		// try {
-		// ackPacket = new AckPacket(packetBytes);
-		// isAck = true;
-		// ackd = ackPacket.getAckdCommand();
-		// System.out.println("	Ack'd command: " + ackd.toString());
-		// } catch (InvalidPacketException e) {
-		// e.printStackTrace();
-		// }
-		// }
-		//
-		// // Flush everything from read buffer
-		// boolean flushSucceeded = false;
-		// while (!flushSucceeded) {
-		// try {
-		// flushReadBuffer();
-		// flushSucceeded = true;
-		// } catch (IOException e) {
-		// e.printStackTrace();
-		// }
-		// }
-		//
-		// // Delay to let the Arduino get ready
-		// Thread.sleep(2000);
-		// } while (!(isAck && ackd == SerialCommand.ESTABLISH_CONNECTION));
-
 	}
 
 	/**
@@ -229,8 +170,8 @@ public class SerialComm {
 				send(outPacket);
 				packetBytes = receive();
 				actualResponse = SerialPacket.getCommand(packetBytes);
-				System.out
-						.println("Got response: " + actualResponse.toString());
+				System.out.println("Got response: " + actualResponse.toString()
+						+ "\n");
 				if (actualResponse == expectedResponse) {
 					if (actualResponse == SerialCommand.ACK) {
 						correctResponseReceived = new AckPacket(packetBytes)

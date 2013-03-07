@@ -12,7 +12,7 @@ public class GpsResponsePacket extends SerialPacket {
 	private static final int LOCATION_LATITUDE = 0;
 
 	// Argument 2: elevation angle
-	private static final int LOCATION_LONGITUDE = 7;
+	private static final int LOCATION_LONGITUDE = 8;
 
 	// ===============================
 	// INSTANCE VARIABLES

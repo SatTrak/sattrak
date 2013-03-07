@@ -92,6 +92,8 @@ public class ByteConverter {
 		byte[] bytes = new byte[LENGTH_DOUBLE];
 		System.arraycopy(valueString.getBytes(), 0, bytes, 0,
 				valueString.length());
+		// Make sure last element is a null term
+		bytes[LENGTH_DOUBLE - 1] = 0;
 		return bytes;
 	}
 

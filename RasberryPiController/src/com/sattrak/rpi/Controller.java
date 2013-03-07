@@ -8,6 +8,7 @@ import java.util.GregorianCalendar;
 import java.util.StringTokenizer;
 import java.util.concurrent.DelayQueue;
 
+import com.sattrak.rpi.serial.AckPacket;
 import com.sattrak.rpi.serial.EnvironmentalReadPacket;
 import com.sattrak.rpi.serial.EnvironmentalResponsePacket;
 import com.sattrak.rpi.serial.GpsReadPacket;
@@ -17,6 +18,8 @@ import com.sattrak.rpi.serial.OrientationResponsePacket;
 import com.sattrak.rpi.serial.OrientationSetPacket;
 import com.sattrak.rpi.serial.SerialComm;
 import com.sattrak.rpi.serial.SerialComm.IncorrectResponseException;
+import com.sattrak.rpi.serial.SerialCommand;
+import com.sattrak.rpi.serial.SerialPacket.InvalidPacketException;
 import com.sattrak.rpi.util.FormatUtil;
 
 /**
@@ -34,11 +37,6 @@ public class Controller {
 	// ===============================
 
 	private static final String SERIAL_PORT = "/dev/ttyS80";
-
-	// Length of time between setting the orientation and taking the picture.
-	// Should be at least as long as the max time it can take the motors to move
-	// to any orientation.
-	private static final long TASK_DELAY = 5000;
 
 	// ===============================
 	// INSTANCE VARIABLES
@@ -67,7 +65,8 @@ public class Controller {
 		arduino = new SerialComm(SERIAL_PORT);
 
 		// Establish connection with Arduino
-		System.out.println("Trying to establish connection with Arduino...");
+		System.out
+				.println("\nTrying to establish connection with Arduino...\n");
 		arduino.establishConnection();
 		System.out.println("Connection established with Arduino!\n");
 	}
@@ -87,7 +86,7 @@ public class Controller {
 	 *             passed)
 	 */
 	public void addTask(Task t) throws Exception {
-		if (t.getDateTime().getTimeInMillis() - System.currentTimeMillis() < TASK_DELAY)
+		if (t.getDateTime().getTimeInMillis() - System.currentTimeMillis() < Task.MOTOR_DELAY)
 			throw new Exception("Not enough time to execute task "
 					+ t.getTitle());
 		else
@@ -102,10 +101,23 @@ public class Controller {
 	 * @throws Exception
 	 */
 	public void executeTask(Task t) throws Exception {
-		OrientationSetPacket oSetPacket = new OrientationSetPacket(
-				t.getAzimuth(), t.getElevation());
-		// arduino.sendAndReceive(oSetPacket);
-		// TODO
+		setOrientation(t.getAzimuth(), t.getElevation());
+
+		// Check if task time has already passed
+		long timeToExecute = t.getDateTime().getTimeInMillis();
+		if (System.currentTimeMillis() > timeToExecute) {
+			throw new Exception(
+					"Task "
+							+ t.getTitle()
+							+ " could not execute becuause the orientation was not set in time.");
+		}
+
+		while (System.currentTimeMillis() < timeToExecute) {
+		}
+
+		System.out.println("Capturing image at "
+				+ FormatUtil.getTimeString(new GregorianCalendar()));
+		// TODO take picture
 	}
 
 	/**
@@ -151,6 +163,25 @@ public class Controller {
 			throws IncorrectResponseException, InterruptedException {
 		return (OrientationResponsePacket) arduino
 				.sendAndReceive(new OrientationReadPacket());
+	}
+
+	public OrientationResponsePacket setOrientation(double azimuth,
+			double elevation) throws IncorrectResponseException,
+			InterruptedException, InvalidPacketException, IOException {
+		AckPacket ack = new AckPacket(SerialCommand.NULL);
+
+		// Send orientation set packet until it is ack'd
+		while (ack.getAckdCommand() != SerialCommand.SET_ORIENTATION) {
+			ack = (AckPacket) arduino.sendAndReceive(new OrientationSetPacket(
+					azimuth, elevation));
+		}
+
+		// Wait for an orientation response packet after the motors have
+		// finished moving
+		System.out.println("Waiting for orientation to be set...\n");
+		OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
+				arduino.receive());
+		return oRespPacket;
 	}
 
 	// ===============================
@@ -212,7 +243,8 @@ public class Controller {
 				"2. Get Environmental Data\n" +
 				"3. Get GPS Location\n" +
 				"4. Get Orientation\n" +
-				"5. Quit\n";
+				"5. Set Orientation\n" +
+				"6. Quit\n";
 		//@formatter:on
 		private static final String REQUEST_INPUT = "Enter option number: ";
 
@@ -306,6 +338,19 @@ public class Controller {
 								e.printStackTrace();
 							}
 						} else if (option.equals("5")) {
+							// Prompt user for azimuth and elevation angles
+							double azimuth = promptForAngle(keyboard, "Azimuth");
+							double elevation = promptForAngle(keyboard,
+									"Elevation");
+							System.out
+									.println("Setting orientation to azimuth = "
+											+ azimuth
+											+ ", elevation = "
+											+ elevation + "...\n");
+							OrientationResponsePacket oRespPacket = controller
+									.setOrientation(azimuth, elevation);
+							System.out.println(oRespPacket.toString());
+						} else if (option.equals("6")) {
 							System.out.println("Quitting...");
 							System.exit(0);
 						} else {

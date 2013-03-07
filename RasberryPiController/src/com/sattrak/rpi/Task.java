@@ -12,6 +12,11 @@ public class Task implements Delayed {
 	// CONSTANTS
 	// ===============================
 
+	// Length of time between setting the orientation and taking the picture.
+	// Should be at least as long as the max time it can take the motors to move
+	// to any orientation.
+	public static final long MOTOR_DELAY = 5000;
+
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
@@ -109,7 +114,7 @@ public class Task implements Delayed {
 	@Override
 	public long getDelay(TimeUnit unit) {
 		long delayInMillis = dateTime.getTimeInMillis()
-				- System.currentTimeMillis();
+				- System.currentTimeMillis() - MOTOR_DELAY;
 		return unit.convert(delayInMillis, unit);
 	}
 

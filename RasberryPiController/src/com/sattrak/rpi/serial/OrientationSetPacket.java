@@ -12,7 +12,7 @@ public class OrientationSetPacket extends SerialPacket {
 	private static final int LOCATION_AZIMUTH = 0;
 
 	// Argument 2: elevation angle
-	private static final int LOCATION_ELEVATION = 7;
+	private static final int LOCATION_ELEVATION = 8;
 
 	// ===============================
 	// INSTANCE VARIABLES
