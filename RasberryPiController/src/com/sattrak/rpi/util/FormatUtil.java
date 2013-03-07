@@ -1,6 +1,8 @@
 package com.sattrak.rpi.util;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
 
 public class FormatUtil {
 
@@ -30,6 +32,13 @@ public class FormatUtil {
 	public static String getDateString(Calendar date) {
 		return (date.get(Calendar.MONTH) + 1) + "/" + date.get(Calendar.DATE)
 				+ "/" + date.get(Calendar.YEAR);
+	}
+
+	public static String getCurrentTimeStamp() {
+		SimpleDateFormat sdfDate = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");// dd/MM/yyyy
+		Date now = new Date();
+		String strDate = sdfDate.format(now);
+		return strDate;
 	}
 
 }

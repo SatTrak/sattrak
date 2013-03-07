@@ -7,6 +7,6 @@
 			<attribute name="javadoc_location" value="jar:file:/home/alex/SatTrak/libraries/gstreamer-java-doc-1.5.zip!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/usr/share/java/jna/jna.jar"/>
+	<classpathentry kind="lib" path="/home/alex/Downloads/jna-3.2.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

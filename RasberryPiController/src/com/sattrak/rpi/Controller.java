@@ -117,7 +117,7 @@ public class Controller {
 
 		System.out.println("Capturing image at "
 				+ FormatUtil.getTimeString(new GregorianCalendar()));
-		// TODO take picture
+		captureImage();
 	}
 
 	/**
@@ -184,6 +184,19 @@ public class Controller {
 		return oRespPacket;
 	}
 
+	public void captureImage() {
+		String cmd = "/bin/bash /home/alex/SatTrak/sattrak/capture.sh";
+		try {
+			Process proc = Runtime.getRuntime().exec(cmd);
+			Thread.sleep(5000);
+			proc.destroy();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+	}
+
 	// ===============================
 	// PRIVATE METHODS
 	// ===============================
@@ -244,7 +257,8 @@ public class Controller {
 				"3. Get GPS Location\n" +
 				"4. Get Orientation\n" +
 				"5. Set Orientation\n" +
-				"6. Quit\n";
+				"6. Capture Image\n" +
+				"7. Quit\n";
 		//@formatter:on
 		private static final String REQUEST_INPUT = "Enter option number: ";
 
@@ -256,6 +270,7 @@ public class Controller {
 				final Controller controller = new Controller();
 
 				while (true) {
+					System.out.println(FormatUtil.getCurrentTimeStamp());
 					System.out.println(OPTIONS);
 					System.out.print(REQUEST_INPUT);
 					String option = "";
@@ -351,6 +366,9 @@ public class Controller {
 									.setOrientation(azimuth, elevation);
 							System.out.println(oRespPacket.toString());
 						} else if (option.equals("6")) {
+							controller.captureImage();
+							System.out.println("Captured image");
+						} else if (option.equals("7")) {
 							System.out.println("Quitting...");
 							System.exit(0);
 						} else {
