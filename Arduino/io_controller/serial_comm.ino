@@ -94,11 +94,10 @@ void handle_packet(byte *packet_bytes) {
       int args_length = LEN_AZIMUTH + LEN_ELEVATION;
       byte *args = get_args(packet_bytes, args_length);
       double az_target = extract_double(args, LOC_AZIMUTH);
-      double el_target = extract_double(args, LOC_ELEVATION);
+      double el_target = extract_double(packet_bytes, LOC_ARGS+LOC_ELEVATION);
       
       // Move motors
-      set_azimuth(az_target);
-      set_elevation(el_target);
+      set_orientation(az_target, el_target);
       
       // Read new orientation
       read_compass();
@@ -108,7 +107,7 @@ void handle_packet(byte *packet_bytes) {
       int ornt_args_length = LEN_AZIMUTH + LEN_ELEVATION;
       byte ornt_args[ornt_args_length];
       insert_double(ornt_args, LOC_AZIMUTH, azimuth);
-      insert_double(ornt_args, LOC_ELEVATION, elevation);
+      insert_double(ornt_args, LOC_ELEVATION, elevationq);
       send_packet(COMMAND_ORNT_RESPONSE, ornt_args, ornt_args_length);
       break;
     }

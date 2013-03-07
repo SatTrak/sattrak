@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-const int D_WIDTH = 7; // Double strings are 8 total bytes incl. 1 for null term
+const int D_WIDTH = 8; // Double strings are 8 total bytes incl. 1 for null term
 const int D_PREC = 2;  // Double strings have 2 decimals places precision
 
 // ======================= 
@@ -9,19 +9,21 @@ const int D_PREC = 2;  // Double strings have 2 decimals places precision
 
 // Insert the given double into the given byte array, starting at offset. It is inserted as a string.
 void insert_double(byte *bytes, int offset, double value) {
-  char value_str[D_WIDTH+1];
-  dtostrf(value, D_WIDTH, D_PREC, value_str);
-  for (int i = 0; i < D_WIDTH+1; i++) {
+  char value_str[D_WIDTH];
+  dtostrf(value, D_WIDTH-1, D_PREC, value_str);
+  for (int i = 0; i < D_WIDTH; i++) {
     bytes[offset + i] = (byte) value_str[i];
   }
 }
 
 // Extract a double from the given byte array. It should be represented as a string.
 double extract_double(byte *bytes, int offset) {
-  char *value_str;
-  for (int i = 0; i < D_WIDTH+1; i++) {
+  char value_str[D_WIDTH];
+  for (int i = 0; i < D_WIDTH-1; i++) {
     value_str[i] = (char) bytes[offset + i];
   }
+  // Make last element a null term
+  value_str[D_WIDTH-1] = 0;
   return strtod(value_str, NULL);
 }
 

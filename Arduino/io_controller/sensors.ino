@@ -80,7 +80,7 @@ void read_gps() {
   }
 }
 
-void read_compass() {
+double read_compass() {
   Wire.beginTransmission(HMC6352SlaveAddress);
   Wire.write(HMC6352ReadAddress);              // The "Get Data" command
   Wire.endTransmission();
@@ -98,9 +98,10 @@ void read_compass() {
 
   float headingSum = (MSB << 8) + LSB;
   azimuth = headingSum / 10; 
+  return azimuth;
 }
 
-void read_inclinometer() {
+double read_inclinometer() {
   // Select inclinometer
   digitalWrite(INC_CSB_PIN, LOW); 
 
@@ -129,6 +130,7 @@ void read_inclinometer() {
   
   // Convert digital signal to angle (see datasheet for formula)
   elevation = radsToDegrees(asin((received - INC_OFFSET)/INC_SENS));
+  return elevation;
 }
 
 
