@@ -1,3 +1,5 @@
+#include <PID_v1.h>
+
 // ======================= 
 // MOTOR FUNCTIONS
 // =======================
@@ -60,7 +62,7 @@ void set_azimuth(double target) {
 void set_azimuth_pid(double target) {
   double heading;
   double motor_pwm;
-  
+
 
 }
 
@@ -69,6 +71,10 @@ void set_elevation(double target) {
   while (1) {
     double incline = read_inclinometer();
     double err = incline - target;
+    Serial.print("Elevation = ");
+    Serial.print(incline);
+    Serial.print(", Error ");
+    Serial.println(err);
 
     // Set elevation motor direction based on sign of error
     if (err > 0){
@@ -100,10 +106,33 @@ void set_elevation(double target) {
 
 // Set the elevation to the given target angle
 void set_elevation_pid(double target) {
+  double kp=2, ki=0, kd=0;
+
   double incline = read_inclinometer();
-  double motor_pwm = 0;
+  double motor_pwm = 80;
+
+  PID elev_pid(&incline, &motor_pwm, &target, kp, ki, kd, DIRECT);
+
+  //Setup the pid 
+  elev_pid.SetMode(AUTOMATIC);
+
   while (1) {
+    incline = read_inclinometer();
+    elev_pid.Compute();
     
+    Serial.print("Elevation = ");
+    Serial.print(incline);
+    Serial.print(", \t\tPWM ");
+    Serial.println(motor_pwm);
+    
+    if ((incline - target) > 0){
+      digitalWrite(MOTR_EL_DIR_PIN, HIGH);
+    } 
+    else {
+      digitalWrite(MOTR_EL_DIR_PIN, LOW);
+    }
+    
+    analogWrite(MOTR_EL_PWM_PIN, motor_pwm);
   }
 }
 
@@ -111,6 +140,12 @@ void set_elevation_pid(double target) {
 void level() {
   set_elevation(0);
 }
+
+
+
+
+
+
 
 
 

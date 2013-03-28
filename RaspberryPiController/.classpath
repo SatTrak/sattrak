@@ -2,11 +2,11 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="/home/alex/SatTrak/libraries/gstreamer-java-1.5.jar" sourcepath="/home/alex/SatTrak/libraries/gstreamer-java-src-1.5">
+	<classpathentry kind="lib" path="/home/alex/SatTrak/sattrak/RasberryPiController/lib/gstreamer/gstreamer-java-1.5.jar" sourcepath="/home/alex/SatTrak/sattrak/RasberryPiController/lib/gstreamer/gstreamer-java-src-1.5">
 		<attributes>
-			<attribute name="javadoc_location" value="jar:file:/home/alex/SatTrak/libraries/gstreamer-java-doc-1.5.zip!/"/>
+			<attribute name="javadoc_location" value="jar:file:/home/alex/SatTrak/sattrak/RasberryPiController/lib/gstreamer/gstreamer-java-doc-1.5.zip!/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/home/alex/Downloads/jna-3.2.4.jar"/>
+	<classpathentry kind="lib" path="/home/alex/SatTrak/sattrak/RasberryPiController/lib/jna/jna-3.2.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

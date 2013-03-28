@@ -107,7 +107,7 @@ void handle_packet(byte *packet_bytes) {
       int ornt_args_length = LEN_AZIMUTH + LEN_ELEVATION;
       byte ornt_args[ornt_args_length];
       insert_double(ornt_args, LOC_AZIMUTH, azimuth);
-      insert_double(ornt_args, LOC_ELEVATION, elevationq);
+      insert_double(ornt_args, LOC_ELEVATION, elevation);
       send_packet(COMMAND_ORNT_RESPONSE, ornt_args, ornt_args_length);
       break;
     }
