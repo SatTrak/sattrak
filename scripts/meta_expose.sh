@@ -1,17 +1,22 @@
 #!/bin/bash
 
-FILETYPE="jpg"
+#File information
+FILETYPE="png"
 FILEDIR=*.$FILETYPE
 
 #echo "$FILEDIR"
 shopt -s nullglob
 
-# get the two arguments to the expose script
-# Examples of arguments
-#   2013_04_01-20:13:32:033
-#   2013_04_01-20:13:33:000
-start = $1
-end = $2
+# Check if both arguments (start and end) are provided
+if [ ${#@} != 2 ]; then
+  echo "Need a Start and End time argument"
+  echo "format should be YYYY_MM_DD-HH:mm:ss:mss"
+  exit
+fi 
+
+# get the two arguments
+start=$1
+end=$2
 
 # parse before and after into arrays
 start_ar=(${start//[_-:]/ })
@@ -47,8 +52,9 @@ end_minutes=${end_ar[4]}
 end_seconds=${end_ar[5]}
 end_milsecs=${end_ar[6]}
 
-
-counter = 0
+# Make a counter and file array
+counter=0
+files[0]=0
 
 # For each file in the file directory
 # process and compare to see if it should be added
@@ -57,17 +63,17 @@ for f in $FILEDIR
 do
   echo ""
   echo "Processing '$f' "
-  
+	echo ""  
+
   # Split into an array of values
   ar=(${f//[_-:.]/ })
-
-  #echo ${#ar[@]}
 
   # if the filename does not have 8 elements, do not process
   # The elements should be, in this order,
   # Year Month Day Hours Minutes Seconds Milliseconds FileExtension
   if [ ${#ar[@]} != 8 ]; then
     echo "Not a valid filename"
+		echo ""
   else
     # Parse out all information
     year=${ar[0]}
@@ -89,38 +95,31 @@ do
     echo "Mseconds = $milsecs"
     echo "Filetype = $type"
     
+
     # Check if after the start
-    if[ (before_year<=year) & (before_month<=month) & (before_day<=day) &
-	(before_hours<=hours) & (before_minutes<=minutes) & 
-	(before_seconds<=seconds) & (before_milsecs<=milsecs) ]; then
+    if [ $start_year -le $year -a $start_month -le $month -a $start_day -le $day -a $start_hours -le $hours -a $start_minutes -le $minutes -a $start_seconds -le $seconds -a $start_milsecs -le $milsecs ]
+    then
     
+      echo " After the start time "
       # Check if before end
-      if[ (end_year>=year) & (end_month>=month) & (end_day>=day) &
-	  (end_hours>=hours) & (end_minutes>=minutes) & 
-	  (end_seconds>=seconds) & (end_milsecs>=milsecs) ]; then
+      if [ $end_year -ge $year -a $end_month -ge $month -a $end_day -ge $day -a $end_hours -ge $hours -a $end_minutes -ge $minutes -a $end_seconds -ge $seconds -a $end_milsecs -ge $milsecs ]
+      then
 	   
+        echo " Before the end time "
         # Add files to array
         echo "File added"
-	files[$counter] = $f
+        files[counter]="$f"
+        let counter=counter+1
+				echo "counter = $counter"
+				echo ""
+      
+			fi
+    fi        
+  fi
+done # End of file finding loop
 
-      else
-          # Not before the ending time
-          # Do nothing with this file
-      fi
-
-    else
-	# Not after the starting time
-        # Do nothing with this file
-    fi    
-    
-    
-  fi #end file finding loop
-  
-  # Average the files
-  echo files[@]
-  convert *.jpg -average out.jpg  
-
-done
-
-
+# Average the files
+echo "Averaging files: ${files[@]}"
+echo ""
+convert "${files[@]}" -average out."$FILETYPE"
 
