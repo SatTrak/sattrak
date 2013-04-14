@@ -1,0 +1,387 @@
+#include <Wire.h>
+#include <math.h>
+
+#define HMC6352ReadAddress 0x41
+
+#define AZ_PWM 5
+#define AZ_DIR 4
+
+#define AVERAGES 15
+#define AZ_PULSING
+
+// #define EL_DEBUG
+#define AZ_DEBUG
+
+int HMC6352SlaveAddress =0x42;
+
+void setup() {
+  HMC6352SlaveAddress = HMC6352SlaveAddress >> 1;
+
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  pinMode(12, INPUT);
+  pinMode(13, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+
+  pinMode(AZ_PWM, OUTPUT);
+  pinMode(AZ_DIR, OUTPUT);  
+
+  Serial.begin(9600);
+  Wire.begin();
+  Serial.println("Start");
+  while(!Serial.available());
+  while(Serial.read() != -1); // flush UART
+
+  homeMount();
+  //levelMount(0);
+  Serial.println("Mount Homed");
+}
+
+void loop() {
+  // Ask user for coordinates
+  Serial.println("Azimuth?");
+  while(!Serial.available());
+  int az = Serial.parseInt();
+  while(Serial.read() != -1);
+
+  Serial.println("Elevation?");
+  while(!Serial.available());
+  int el = Serial.parseInt();
+  while(Serial.read() != -1);
+
+  // reject trash coordinates
+  if (el > 45){
+    el = 45;
+  }
+
+  if (az > 359){
+    az = 0;
+  }
+
+  // easter egg, report current location
+  if(el == 42){
+    Serial.print("Azimuth: ");
+    double avg = 0.0;
+    /*
+    for (int i = 0; i < AVERAGES; i ++){
+     avg += getHeading();
+     }
+     avg /= (AVERAGES * 10);
+     Serial.print(avg);
+     */
+    Serial.print(getHeading());
+
+    Serial.print("; Elevation: ");    
+    avg = 0.0;
+    for (int i = 0; i < AVERAGES; i ++){
+      avg += readInclineData();
+    }
+    avg = avg * 180.0 / 3.1416;
+    avg /= AVERAGES;
+    Serial.println(avg);
+  } 
+  else {
+    // echo accepted coordinates
+    Serial.print("Azimuth: ");
+    Serial.print(az);
+    Serial.print("; Elevation: ");
+    Serial.println(el);
+    moveMount(az, el);
+  }
+}
+
+void moveMount(int az, int el) {
+  levelMount(0);
+  delay(500);
+  orientMount(az);
+  levelMount(el);
+}
+
+void homeMount() {
+  levelMount(0);
+  orientMount(0);
+}
+
+void levelMount(int angle) {
+  while (1){
+    double incline = readInclineData();
+    incline = incline * 180.0 / 3.1416; // I know this is a double, will convert later
+#ifdef EL_DEBUG
+    Serial.print("Incline: ");
+    Serial.println(incline);
+#endif
+
+    double i = incline - angle;
+
+    if (i > 0){
+      digitalWrite(2, HIGH);
+    }
+    else {
+      digitalWrite(2, LOW);
+    }
+
+    i = abs(i);
+
+    if (i < 1) {
+      analogWrite(3, 0);
+      double inc = levelPulse(angle);
+      Serial.print("Leveled at: ");
+      Serial.println(incline);
+      return;
+    } 
+    else if (i < 10) {
+      analogWrite(3, 60);
+    } 
+    else if (i < 20) {
+      analogWrite(3, 70);
+    } 
+    else {
+      analogWrite(3, 80);
+    }
+    delay(1);
+  }
+}
+
+double levelPulse(int angle) {
+  delay(1000);  // wait for settle
+
+  volatile double avg = 0.0;
+
+  for (int i = 0; i < AVERAGES; i ++){
+    avg += readInclineData();
+    //Serial.println(avg);        
+  }
+  //Serial.println(avg);
+  avg *= 180.0;
+  //Serial.println(avg);
+  avg /= 3.1416;
+  //Serial.println(avg);
+  avg /= AVERAGES;
+
+#ifdef EL_DEBUG
+  Serial.print("Avg at: ");
+  Serial.println(avg);
+#endif
+
+  int pulses = abs(angle - avg) / 0.25;
+
+#ifdef EL_DEBUG
+  Serial.print("Pulses: ");
+  Serial.println(pulses);
+#endif
+
+  double i = avg - angle;
+
+  if (i > 0){
+    digitalWrite(2, HIGH);
+  }
+  else {
+    digitalWrite(2, LOW);
+  }
+
+  for(int j = 0; j < pulses; j++){
+    digitalWrite(3, HIGH);
+    delay(5);
+
+    digitalWrite(3, LOW);
+    delay(250);
+  }
+  avg = 0.0;
+  for (int i = 0; i < AVERAGES; i ++){
+    avg += readInclineData();
+    //Serial.println(avg);        
+  }
+  //Serial.println(avg);
+  avg *= 180.0;
+  //Serial.println(avg);
+  avg /= 3.1416;
+  //Serial.println(avg);
+  avg /= AVERAGES;
+  // Serial.print("Final at: ");
+  // Serial.println(avg);
+  return avg;
+}
+
+// read the incline data from the sensor
+// done manually due to 11 bit data
+double readInclineData() {
+  digitalWrite(10, LOW); // select inclinometer
+
+  int command = 0x10;    // read RDAX
+  int recieved = 0;      // place to store incoming
+
+  // loop to send command and tick the clock
+  for(int i = 7; i >= 0; i--){
+    digitalWrite(11, (command & (1 << i)));
+    digitalWrite(13, HIGH);
+    delayMicroseconds(1); // too high but good enough for now
+    digitalWrite(13, LOW);
+    delayMicroseconds(1);
+  }
+
+  // loop to recieve data from inclinometer and tick clock
+  for(int i = 10; i >= 0; i--){
+    digitalWrite(13, HIGH);
+    delayMicroseconds(1);
+    recieved |= (digitalRead(12) << i);
+    digitalWrite(13, LOW);
+    delayMicroseconds(1);
+  } 
+
+  digitalWrite(10, HIGH); // deselect inclinometer and reset connection
+  return asin((recieved - 1024.0)/819.0); // see datasheet for formula
+}
+
+void orientMount(int angle) {
+  int p_angle = angle * 10;
+  while(1){
+#ifdef AZ_DEBUG
+    int heading = getHeading(); // get true heading
+    Serial.print("Going to: ");
+    Serial.print(p_angle);
+    Serial.print("; Heading: ");
+    Serial.print(heading);
+    Serial.print("; Difference: ");
+#endif
+
+    int difference = heading - p_angle;
+
+#ifdef AZ_DEBUG
+    Serial.println(difference);
+#endif
+
+    // if the heading and desired angle are on separate sides of 180 degrees
+    if((heading > 1800) == (p_angle < 1800)) {
+      if (signbit(difference)){ // split the difference for the middle 
+        digitalWrite(AZ_DIR, LOW);
+      } 
+      else {
+        digitalWrite(AZ_DIR, HIGH);
+      } 
+    } 
+    else {
+      if (signbit(difference)){ // split the difference for the middle 
+        digitalWrite(AZ_DIR, HIGH);
+      } 
+      else {
+        digitalWrite(AZ_DIR, LOW);
+      }  
+    }
+
+    /*
+    if (difference < 0) {          // if less than 0, add 3600 to match
+     difference += 3600;
+     }
+     
+     if (difference > 1800){ // split the difference for the middle 
+     digitalWrite(AZ_DIR, HIGH);
+     } 
+     else {
+     digitalWrite(AZ_DIR, LOW);
+     } 
+     */
+
+    // recharacterize these PWM values <=======================================================
+    if (difference < 0) {          // if less than 0, add 3600 to match
+      difference += 3600;
+    }
+
+    if (difference > 900 && difference < 2700){
+      analogWrite(AZ_PWM, 120); 
+    }
+    else if (difference > 450 && difference < 3150){
+      analogWrite(AZ_PWM, 110);   
+    }
+    else if (difference > 200  && difference < 3400){
+      analogWrite(AZ_PWM, 100);
+    } 
+    else {
+      digitalWrite(AZ_PWM, LOW);
+
+#ifdef AZ_PULSING
+      heading = orientPulse(p_angle);
+#endif
+
+#ifdef AZ_DEBUG
+      Serial.print("Oriented at: ");
+      Serial.println(heading);
+#endif
+      return; 
+    }
+    //    delay(50); // arbitrary choice
+  }
+}
+
+// parameter is decimal fixed point of one decimal digit
+int orientPulse(int angle) {
+  delay(1000);  // wait for settle
+
+  int loc = getHeading();
+  int diff = loc - angle;
+  boolean dir = signbit(diff);
+
+#ifdef AZ_DEBUG
+  Serial.print("==== At: ");
+  Serial.print(loc);
+  Serial.print("; Going to: ");
+  Serial.print(angle);
+  Serial.print("; Diff: ");
+  Serial.println(diff);
+#endif
+
+    // checking for overshoot too
+  while (abs(diff) > 5 && abs(diff) < 3595)  { // && !(dir ^ signbit(diff))) {
+
+#ifdef AZ_DEBUG
+    Serial.print("==== At: ");
+    Serial.print(loc);
+    Serial.print("; Going to: ");
+    Serial.print(angle);
+    Serial.print("; Diff: ");
+    Serial.println(diff);
+#endif
+
+    if(angle == 0 && loc > 1800){
+      digitalWrite(4, HIGH);      
+    }
+    else if (angle == 0 && loc < 1800) {
+      digitalWrite(4, LOW);
+    } 
+    else {
+
+      if (signbit(diff)){
+        digitalWrite(4, HIGH);
+      }
+      else {
+        digitalWrite(4, LOW);
+      }
+    }
+    // the pulsing works
+    digitalWrite(5, HIGH);
+    delay(8);
+
+    digitalWrite(5, LOW);
+    delay(50);
+
+    loc = getHeading();
+    diff = loc - angle;
+  }
+  return getHeading();
+}
+
+/* returns heading as an int where the heading is return / 10 */
+int getHeading() {
+  Wire.beginTransmission(HMC6352SlaveAddress);
+  Wire.write(HMC6352ReadAddress);
+  Wire.endTransmission();
+
+  delay(6);
+
+  Wire.requestFrom(HMC6352SlaveAddress, 2);
+
+  byte MSB = Wire.read();
+  byte LSB = Wire.read();
+
+  return (MSB << 8) + LSB; 
+}
