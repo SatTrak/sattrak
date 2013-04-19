@@ -1,118 +1,183 @@
 package com.sattrak.rpi;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import org.gstreamer.Caps;
-import org.gstreamer.Element;
-import org.gstreamer.ElementFactory;
-import org.gstreamer.Gst;
-import org.gstreamer.Pipeline;
-import org.gstreamer.State;
-import org.gstreamer.elements.FileSink;
+import com.sattrak.rpi.util.FormatUtil;
 
 public class Camera {
+	private static final String VID_FILE = "video.avi";
+	private static final String FRAME_FILE = "frame%03d.png";
+	private static final String LOG_FILE = "ffmpeg.log";
+
+	private static final String FRAME_RATE = "10/1";
+	private static final String FRAME_SIZE = "640x480";
 
 	private String device;
 
 	public Camera(String device) {
 		this.device = device;
-		Gst.init();
 	}
 
-	public void test() throws InterruptedException {
-		final Pipeline pipe = new Pipeline("testpipe");
-		final Element testsource = ElementFactory.make("videotestsrc",
-				"testsource");
-		final Element pngEncoder = ElementFactory.make("pngenc", "pngEncoder");
-		final Element fsink = ElementFactory.make("filesink", "sink");
-		fsink.set("location", "test.png");
+	/**
+	 * Runs a bash script to capture an image from the webcam defined by CAMERA.
+	 * 
+	 * @param captureTime
+	 *            the time at which to begin capturing
+	 * @param duration
+	 *            the length of the image "exposure" in seconds (must be less
+	 *            than 1 min)
+	 * @param verbose
+	 *            if true, prints the script output to stdout
+	 */
+	public void captureImage(final Calendar captureTime, final double duration,
+			String directory, final boolean verbose) {
+		// Get current time and string representation
+		Calendar startTime = new GregorianCalendar();
+		String startTimestamp = FormatUtil.getAsFilename(startTime);
+		if (verbose) {
+			System.out.println("Start Time: " + startTimestamp);
+		}
 
-		pipe.addMany(testsource, pngEncoder, fsink);
-		Element.linkMany(testsource, pngEncoder, fsink);
-		pipe.setState(State.PLAYING);
-		Thread.sleep(3000);
-		pipe.setState(State.PAUSED);
-	}
+		// Time until capture should start (ms)
+		long delay = captureTime.getTimeInMillis()
+				- startTime.getTimeInMillis();
 
-	public void takeSnapshot() {
-		final Pipeline pipe = new Pipeline("snapshotpipe");
-		final Element videosource = ElementFactory.make("v4l2src", "source");
-		videosource.set("device", device);
-		final Element colorFilter = ElementFactory.make("capsfilter",
-				"colorFilter");
-		colorFilter.setCaps(Caps.fromString("video/x-raw-yuv, framerate=30/1"));
-		final Element colorConverter = ElementFactory.make("ffmpegcolorspace",
-				"colorConverter");
-		final Element pngEncoder = ElementFactory.make("pngenc", "pngEncoder");
-		// pngEncoder.set("snapshot", "TRUE");
-		// final Element fsink = ElementFactory.make("filesink", "sink");
-		// fsink.set("location", "images/snap.png");
-		final FileSink fsink = new FileSink("sink");
-		fsink.setLocation("images/snap.png");
+		// Capture for this long (s) (10 extra seconds just in case)
+		double totalDuration = ((double) delay / 1000) + duration + 10;
 
-		pipe.addMany(videosource, colorFilter, colorConverter, pngEncoder,
-				fsink);
-		Element.linkMany(videosource, colorFilter, colorConverter, pngEncoder,
-				fsink);
+		// Construct paths for output
+		String framesPath = directory + "/frames";
+		String logPath = directory + "/" + LOG_FILE;
 
-		pipe.setState(State.PLAYING);
+		// Make sure directories are created
+		File file = new File(framesPath);
+		if (!file.exists()) {
+			file.mkdirs();
+		}
+
 		try {
-			Thread.sleep(3000);
+			// Capture the video
+
+			// Build the ffmpeg command
+			List<String> captureCmd = Arrays.asList("ffmpeg", "-y", "-v",
+					"verbose", "-report", "-an", "-vsync", "2", "-f", "v4l2",
+					"-i", device, "-vcodec", "copy", "-t",
+					FormatUtil.getTimeString(totalDuration), "-timestamp",
+					"now", directory + "/" + VID_FILE);
+			ProcessBuilder captureBuilder = new ProcessBuilder(captureCmd);
+			captureBuilder.redirectErrorStream(true);
+
+			// Set ffreport env variable so that log file is saved at
+			// known location
+			Map<String, String> env = captureBuilder.environment();
+			env.put("FFREPORT", "file=" + logPath);
+
+			// Execute capture and print output if verbose
+			Process capture = captureBuilder.start();
+			if (verbose) {
+				System.out.println("\n Camera capture script output:\n");
+				InputStream stdout = capture.getInputStream();
+				BufferedReader reader = new BufferedReader(
+						new InputStreamReader(stdout));
+				String line;
+				while ((line = reader.readLine()) != null) {
+					System.out.println(line);
+				}
+			}
+			capture.waitFor();
+			System.out.println("Video captured. Processing...");
+
+			// Figure out what time the video was actually captured from
+			// log file
+			FileInputStream fis = new FileInputStream(logPath);
+			BufferedReader logFile = new BufferedReader(new InputStreamReader(
+					fis));
+			String line;
+			List<String> timeVals = new ArrayList<String>();
+			String gmtOffset = "";
+			while ((line = logFile.readLine()) != null) {
+				if (line.contains("creation_time")) {
+					Matcher numMatcher = Pattern.compile("\\d+").matcher(line);
+					while (numMatcher.find()) {
+						timeVals.add(numMatcher.group());
+					}
+					Matcher gmtOffsetMatcher = Pattern.compile("[+-]\\d{4}")
+							.matcher(line);
+					if (gmtOffsetMatcher.find()) {
+						gmtOffset = gmtOffsetMatcher.group();
+					}
+				}
+			}
+			int year = Integer.parseInt(timeVals.get(0));
+			int month = Integer.parseInt(timeVals.get(1)) - 1;
+			int day = Integer.parseInt(timeVals.get(2));
+			int hour = Integer.parseInt(timeVals.get(3));
+			int minute = Integer.parseInt(timeVals.get(4));
+			int second = Integer.parseInt(timeVals.get(5));
+			Calendar captureStartTime = new GregorianCalendar(
+					TimeZone.getTimeZone("GMT" + gmtOffset));
+			captureStartTime.set(year, month, day, hour, minute, second);
+
+			if (verbose) {
+				System.out.println("Capture Time: "
+						+ FormatUtil.getTimeString(captureStartTime));
+			}
+
+			// Get difference between desired and actual video capture
+			// times in seconds
+			long delayTime = (captureTime.getTimeInMillis() - startTime
+					.getTimeInMillis()) / 1000;
+
+			// Close the log file
+			logFile.close();
+			fis.close();
+
+			// Convert the video to frames
+
+			// Build the ffmpeg command
+			List<String> convertCmd = Arrays.asList("ffmpeg", "-y", "-v",
+					"verbose", "-i", directory + "/" + VID_FILE, "-ss", ""
+							+ delayTime, "-t",
+					FormatUtil.getTimeString(duration), "-r", FRAME_RATE,
+					framesPath + "/" + FRAME_FILE);
+			ProcessBuilder convertBuilder = new ProcessBuilder(convertCmd);
+			convertBuilder.redirectErrorStream(true);
+
+			// Execute capture and print output if verbose
+			Process convert = convertBuilder.start();
+			if (verbose) {
+				System.out.println("\n Video->Frames conversion output:\n");
+				InputStream stdout = convert.getInputStream();
+				BufferedReader reader = new BufferedReader(
+						new InputStreamReader(stdout));
+				String convStdoutLine;
+				while ((convStdoutLine = reader.readLine()) != null) {
+					System.out.println(convStdoutLine);
+				}
+			}
+			convert.waitFor();
+			System.out.println("Frames grabbed. Stacking...");
+
+		} catch (IOException e1) {
+			e1.printStackTrace();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		pipe.setState(State.NULL);
+
 	}
 
-	public void takeMulti() {
-		final Pipeline pipe = new Pipeline("multishotpipe");
-		final Element videosource = ElementFactory.make("v4l2src", "source");
-		videosource.set("device", device);
-		final Element colorFilter = ElementFactory.make("capsfilter",
-				"colorFilter");
-		colorFilter.setCaps(Caps.fromString("video/x-raw-yuv, framerate=30/1"));
-		final Element colorConverter = ElementFactory.make("ffmpegcolorspace",
-				"colorConverter");
-		final Element pngEncoder = ElementFactory.make("pngenc", "pngEncoder");
-		final Element mfsink = ElementFactory.make("multifilesink", "sink");
-		mfsink.set("location", "frame%d.png");
-
-		pipe.addMany(videosource, colorFilter, colorConverter, pngEncoder,
-				mfsink);
-		videosource.link(colorFilter, colorConverter, pngEncoder, mfsink);
-
-		pipe.setState(State.PLAYING);
-	}
-
-	public void runScript() {
-		String cmd = "/bin/bash /home/alex/SatTrak/capture.sh";
-		try {
-			Process proc = Runtime.getRuntime().exec(cmd);
-			Thread.sleep(5000);
-			proc.destroy();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-
-	void launch() {
-		String cmd = "v4l2src device=/dev/video0 ! video/x-raw/yuv,framerate=30/1 ! ffmpegcolorspace ! pngenc ! filesink location=./images/snap.png";
-		final Pipeline pipe = Pipeline.launch(cmd);
-		pipe.setState(State.PLAYING);
-		try {
-			Thread.sleep(3000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		pipe.setState(State.NULL);
-	}
-
-	public static void main(String[] args) {
-		Camera cam = new Camera("/dev/video0");
-		cam.runScript();
-	}
 }

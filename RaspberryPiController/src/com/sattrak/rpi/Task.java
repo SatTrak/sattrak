@@ -15,7 +15,7 @@ public class Task implements Delayed {
 	// Length of time between setting the orientation and taking the picture.
 	// Should be at least as long as the max time it can take the motors to move
 	// to any orientation.
-	public static final long MOTOR_DELAY = 5000;
+	public static final long MOTOR_DELAY = 15000;
 
 	// ===============================
 	// INSTANCE VARIABLES
@@ -23,7 +23,7 @@ public class Task implements Delayed {
 
 	private String title;
 	private Calendar dateTime;
-	private long duration;
+	private double duration;
 	private double azimuth;
 	private double elevation;
 
@@ -31,8 +31,8 @@ public class Task implements Delayed {
 	// CONSTRUCTORS
 	// ===============================
 
-	public Task(String title, Calendar dateTime, long duration, double azimuth,
-			double elevation) {
+	public Task(String title, Calendar dateTime, double duration,
+			double azimuth, double elevation) {
 		this.title = title;
 		this.dateTime = dateTime;
 		this.duration = duration;
@@ -52,7 +52,7 @@ public class Task implements Delayed {
 		return dateTime;
 	}
 
-	public long getDuration() {
+	public double getDuration() {
 		return duration;
 	}
 
@@ -76,7 +76,7 @@ public class Task implements Delayed {
 		this.dateTime = dateTime;
 	}
 
-	public void setDuration(long duration) {
+	public void setDuration(double duration) {
 		this.duration = duration;
 	}
 
@@ -124,7 +124,7 @@ public class Task implements Delayed {
 		return "Title: " + title + "\n" + 
 				"Date: " + FormatUtil.getDateString(dateTime) + "\n" + 
 				"Time: " + FormatUtil.getTimeString(dateTime) + "\n" + 
-				"Duration: " + duration + " ms\n" + 
+				"Duration: " + duration + " s\n" + 
 				"Azimuth: " + azimuth + " degrees\n" +
 				"Elevation: " + elevation + " degrees";
 		// @formatter:on

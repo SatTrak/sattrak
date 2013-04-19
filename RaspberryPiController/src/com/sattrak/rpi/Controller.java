@@ -1,8 +1,12 @@
 package com.sattrak.rpi;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.StringTokenizer;
@@ -36,13 +40,14 @@ public class Controller {
 	// CONSTANTS
 	// ===============================
 
-	private static final String SERIAL_PORT = "/dev/ttyS80";
+	private static final String OUT_DIR = "out";
 
 	// ===============================
 	// INSTANCE VARIABLES
 	// ===============================
 
 	private SerialComm arduino;
+	private Camera camera;
 	private DelayQueue<Task> tasks;
 	private Thread taskThread;
 
@@ -57,12 +62,15 @@ public class Controller {
 	 * @throws Exception
 	 *             if a serial port error occurs
 	 */
-	public Controller() throws Exception {
+	public Controller(String arduinoPort, String cameraDevice) throws Exception {
 		// Initialize the task thread
 		startTaskThread();
 
+		// Initialize camera
+		camera = new Camera(cameraDevice);
+
 		// Initialize Arduino communication on SERIAL_PORT
-		arduino = new SerialComm(SERIAL_PORT);
+		arduino = new SerialComm(arduinoPort);
 
 		// Establish connection with Arduino
 		System.out
@@ -101,7 +109,11 @@ public class Controller {
 	 * @throws Exception
 	 */
 	public void executeTask(Task t) throws Exception {
-		setOrientation(t.getAzimuth(), t.getElevation());
+		OrientationResponsePacket orientation = new OrientationResponsePacket(
+				t.getAzimuth(), t.getElevation());
+		// OrientationResponsePacket orientation =
+		// setOrientation(t.getAzimuth(),
+		// t.getElevation());
 
 		// Check if task time has already passed
 		long timeToExecute = t.getDateTime().getTimeInMillis();
@@ -112,12 +124,19 @@ public class Controller {
 							+ " could not execute becuause the orientation was not set in time.");
 		}
 
-		while (System.currentTimeMillis() < timeToExecute) {
-		}
+		// Get path for task
+		String taskPath = OUT_DIR + "/" + t.getTitle();
 
+		// Capture image
 		System.out.println("Capturing image at "
 				+ FormatUtil.getTimeString(new GregorianCalendar()));
-		captureImage();
+		camera.captureImage(t.getDateTime(), t.getDuration(), taskPath, true);
+
+		// Write the metadata
+		writeMetadata(taskPath, t, orientation, getGpsData(),
+				getEnvironmentalData());
+
+		System.out.println("\nTask " + t.getTitle() + " completed!\n");
 	}
 
 	/**
@@ -184,22 +203,50 @@ public class Controller {
 		return oRespPacket;
 	}
 
-	public void captureImage() {
-		String cmd = "/bin/bash /home/alex/SatTrak/sattrak/capture.sh";
-		try {
-			Process proc = Runtime.getRuntime().exec(cmd);
-			Thread.sleep(5000);
-			proc.destroy();
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-	}
-
 	// ===============================
 	// PRIVATE METHODS
 	// ===============================
+
+	private void writeMetadata(String path, Task t,
+			OrientationResponsePacket orientation, GpsResponsePacket location,
+			EnvironmentalResponsePacket env) {
+
+		BufferedWriter writer = null;
+		try {
+			// Open metadata file
+			String metadataFilename = path + "/metadata.txt";
+			File metadata = new File(metadataFilename);
+			metadata.createNewFile();
+			FileOutputStream fos = new FileOutputStream(metadata);
+			writer = new BufferedWriter(new OutputStreamWriter(fos));
+
+			// Write metadata
+			writer.write("Task: " + t.getTitle() + "\n");
+			writer.write("Date: " + FormatUtil.getDateString(t.getDateTime())
+					+ "\n");
+			writer.write("Time: " + FormatUtil.getTimeString(t.getDateTime())
+					+ "\n");
+
+			writer.write("Exposure Time: " + t.getDuration() + "\n");
+			writer.write("Intended Azimuth: " + t.getAzimuth() + " degrees\n");
+			writer.write("Intended Elevation: " + t.getElevation()
+					+ " degrees\n");
+			writer.write("Actual Azimuth: " + orientation.getAzimuth()
+					+ " degrees\n");
+			writer.write("Actual Elevation: " + orientation.getElevation()
+					+ " degrees\n");
+			writer.write("Latitude: " + location.getLatitude() + " degrees\n");
+			writer.write("Longitude: " + location.getLongitude() + " degrees\n");
+			writer.write("Temperature: " + env.getTemperature()
+					+ " degrees F\n");
+			writer.write("Humidity: " + env.getHumidity() + " %\n");
+
+			// Close metadata file
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
 
 	/**
 	 * Start a thread to execute tasks in the delay queue.
@@ -262,13 +309,21 @@ public class Controller {
 		//@formatter:on
 		private static final String REQUEST_INPUT = "Enter option number: ";
 
+		private Controller controller;
+
+		public UserInput(String arduinoPort, String cameraDevice) {
+			try {
+				controller = new Controller(arduinoPort, cameraDevice);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+
 		@Override
 		public void run() {
 			BufferedReader keyboard = new BufferedReader(new InputStreamReader(
 					System.in));
 			try {
-				final Controller controller = new Controller();
-
 				while (true) {
 					System.out.println(FormatUtil.getCurrentTimeStamp());
 					System.out.println(OPTIONS);
@@ -292,7 +347,7 @@ public class Controller {
 							date.set(Calendar.MILLISECOND, time.get(0));
 
 							// Prompt user for duration in ms
-							long duration = promptForDuration(keyboard);
+							double duration = promptForDuration(keyboard);
 
 							// Prompt user for azimuth and elevation angles
 							double azimuth = promptForAngle(keyboard, "Azimuth");
@@ -366,8 +421,7 @@ public class Controller {
 									.setOrientation(azimuth, elevation);
 							System.out.println(oRespPacket.toString());
 						} else if (option.equals("6")) {
-							controller.captureImage();
-							System.out.println("Captured image");
+							System.out.println("Option not available!");
 						} else if (option.equals("7")) {
 							System.out.println("Quitting...");
 							System.exit(0);
@@ -388,7 +442,7 @@ public class Controller {
 
 		}
 
-		private Calendar promptForDate(BufferedReader keyboard)
+		private static Calendar promptForDate(BufferedReader keyboard)
 				throws IOException {
 			Calendar date = new GregorianCalendar();
 			boolean valid = true;
@@ -437,7 +491,7 @@ public class Controller {
 			return date;
 		}
 
-		private Calendar promptForTime(BufferedReader keyboard)
+		private static Calendar promptForTime(BufferedReader keyboard)
 				throws IOException {
 			Calendar time = new GregorianCalendar();
 			boolean valid = true;
@@ -483,27 +537,28 @@ public class Controller {
 			return time;
 		}
 
-		private long promptForDuration(BufferedReader keyboard)
+		private static double promptForDuration(BufferedReader keyboard)
 				throws IOException {
-			long duration = 0;
+			double duration = 0;
 			boolean valid = true;
 			do {
-				System.out.print("Exposure duration (ms): ");
+				System.out.print("Exposure duration (s): ");
 				String durationString = keyboard.readLine();
 				try {
-					duration = Long.parseLong(durationString);
+					duration = Double.parseDouble(durationString);
 					valid = true;
 				} catch (NumberFormatException e) {
 					valid = false;
-					System.out.println("Format must be an integer number");
+					System.out
+							.println("Format must be a floating-point number");
 				}
 			} while (!valid);
 
 			return duration;
 		}
 
-		private double promptForAngle(BufferedReader keyboard, String angleName)
-				throws IOException {
+		private static double promptForAngle(BufferedReader keyboard,
+				String angleName) throws IOException {
 			double angle = 0;
 			boolean valid = true;
 			do {
@@ -527,8 +582,11 @@ public class Controller {
 	 * @param args
 	 */
 	public static void main(String[] args) {
+		String arduino = args[0];
+		String camera = args[1];
+
 		// Start UI thread
-		new Thread(new UserInput()).start();
+		new Thread(new UserInput(arduino, camera)).start();
 
 	}
 
