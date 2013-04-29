@@ -15,7 +15,9 @@ public class Task implements Delayed {
 	// Length of time between setting the orientation and taking the picture.
 	// Should be at least as long as the max time it can take the motors to move
 	// to any orientation.
-	public static final long MOTOR_DELAY = 15000;
+	// Currently tested to be < 30 s
+	// 1 minute allows for better settling
+	public static final long MOTOR_DELAY = 60000;
 
 	// ===============================
 	// INSTANCE VARIABLES

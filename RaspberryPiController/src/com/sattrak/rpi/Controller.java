@@ -108,15 +108,20 @@ public class Controller {
 	 *            the task to execute
 	 * @throws Exception
 	 */
-	public void executeTask(Task t) throws Exception {
-		OrientationResponsePacket orientation = new OrientationResponsePacket(
+	public void executeTask(final Task t) throws Exception {
+
+		// Get path for task
+		String taskPath = OUT_DIR + "/" + t.getTitle();
+
+		final OrientationResponsePacket orientation = setOrientation(
 				t.getAzimuth(), t.getElevation());
-		// OrientationResponsePacket orientation =
-		// setOrientation(t.getAzimuth(),
-		// t.getElevation());
+
+		System.out.println("System positioned\nAzimuth: "
+				+ orientation.getAzimuth() + " degrees, Elevation: "
+				+ orientation.getElevation() + " degrees\n");
 
 		// Check if task time has already passed
-		long timeToExecute = t.getDateTime().getTimeInMillis();
+		final long timeToExecute = t.getDateTime().getTimeInMillis();
 		if (System.currentTimeMillis() > timeToExecute) {
 			throw new Exception(
 					"Task "
@@ -124,19 +129,23 @@ public class Controller {
 							+ " could not execute becuause the orientation was not set in time.");
 		}
 
-		// Get path for task
-		String taskPath = OUT_DIR + "/" + t.getTitle();
+		// Wait until 10 seconds before the capture time
+		System.out.println("Waiting...");
+		while (System.currentTimeMillis() < timeToExecute - 10000) {
+		}
 
 		// Capture image
 		System.out.println("Capturing image at "
 				+ FormatUtil.getTimeString(new GregorianCalendar()));
-		camera.captureImage(t.getDateTime(), t.getDuration(), taskPath, true);
+		camera.captureImage(t.getDateTime(), t.getDuration(), taskPath, false);
 
 		// Write the metadata
+		System.out.println("Writing metadata");
 		writeMetadata(taskPath, t, orientation, getGpsData(),
 				getEnvironmentalData());
 
 		System.out.println("\nTask " + t.getTitle() + " completed!\n");
+
 	}
 
 	/**
@@ -198,9 +207,7 @@ public class Controller {
 		// Wait for an orientation response packet after the motors have
 		// finished moving
 		System.out.println("Waiting for orientation to be set...\n");
-		OrientationResponsePacket oRespPacket = new OrientationResponsePacket(
-				arduino.receive());
-		return oRespPacket;
+		return new OrientationResponsePacket(arduino.receive());
 	}
 
 	// ===============================
@@ -271,13 +278,13 @@ public class Controller {
 						System.out.println("\nExecuting task:");
 						System.out.println(toExecute.toString());
 						System.out
-								.println("Actual Time: "
+								.println("Actual Start Time: "
 										+ FormatUtil
 												.getTimeString(new GregorianCalendar()));
 						executeTask(toExecute);
 					} catch (Exception e) {
 						e.printStackTrace();
-						break;
+						// break;
 					}
 				}
 			}

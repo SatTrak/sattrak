@@ -70,12 +70,16 @@ public class Camera {
 		}
 
 		try {
+			// Set overcommit memory to true to allow video capture
+			new ProcessBuilder(
+					Arrays.asList("sysctl", "vm.overcommit_memory=1")).start();
+
 			// Capture the video
 
 			// Build the ffmpeg command
 			List<String> captureCmd = Arrays.asList("ffmpeg", "-y", "-v",
 					"verbose", "-report", "-an", "-vsync", "2", "-f", "v4l2",
-					"-i", device, "-vcodec", "copy", "-t",
+					"-s", FRAME_SIZE, "-i", device, "-vcodec", "copy", "-t",
 					FormatUtil.getTimeString(totalDuration), "-timestamp",
 					"now", directory + "/" + VID_FILE);
 			ProcessBuilder captureBuilder = new ProcessBuilder(captureCmd);
@@ -172,6 +176,10 @@ public class Camera {
 			convert.waitFor();
 			System.out.println("Frames grabbed. Stacking...");
 
+			// Set overcommit memory to false
+			new ProcessBuilder(
+					Arrays.asList("sysctl", "vm.overcommit_memory=0")).start();
+
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		} catch (InterruptedException e) {
@@ -179,5 +187,4 @@ public class Camera {
 		}
 
 	}
-
 }

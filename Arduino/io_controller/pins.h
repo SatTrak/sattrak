@@ -21,10 +21,11 @@
 // Motors
 #define MOTR_EL_DIR_PIN 2
 #define MOTR_EL_PWM_PIN 3
-#define MOTR_AZ_DIR_PIN 4
 #define MOTR_AZ_PWM_PIN 5
+#define MOTR_AZ_DIR_PIN 6
 
 #define NULL_PIN 255
 
 // Reserved: 0-1 for Serial
-// Still free: 6-9, A2, A3
+// Busted: 4 (woops)
+// Still free: 7-9, A2, A3
